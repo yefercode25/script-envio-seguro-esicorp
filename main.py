@@ -1,26 +1,22 @@
 import sys
 import os
-import time
-import base64
-import tkinter as tk
-import traceback
 import random
+import traceback
+import tkinter as tk
 from datetime import datetime
 from tkinter import filedialog
 from src import config
 from src.crypto_manager import CryptoManager
 from src.file_manager import FileManager
 from src.network_manager import NetworkManager
+from src.cli_parser import crear_parser
+from src.sender import Sender
+from src.receiver import Receiver
 from src.utils import (
     print_banner,
-    print_phase,
-    print_action,
     print_success,
     print_error,
     print_info,
-    print_crypto,
-    print_file,
-    print_network,
 )
 
 
@@ -29,6 +25,8 @@ class SecureTransferApp:
         self.crypto = CryptoManager()
         self.file_manager = FileManager()
         self.network = NetworkManager()
+        self.sender = Sender(self.crypto, self.file_manager, self.network)
+        self.receiver = Receiver(self.crypto, self.file_manager, self.network)
 
     def select_path_dialog(self, select_folder=False):
         root = tk.Tk()
@@ -59,7 +57,7 @@ class SecureTransferApp:
         return path
 
     # ==========================================
-    # FLUJO DE ENVÍO (SENDER)
+    # FLUJO DE ENVÍO (SENDER) - MODO INTERACTIVO
     # ==========================================
     def sender_flow(self):
         print_banner()
@@ -70,12 +68,7 @@ class SecureTransferApp:
         self.file_manager.setup_session(session_id)
         print_info(f"ID de Sesión generado: {session_id}")
 
-        # 2. Seleccionar Archivo
-        path = self.get_input_path()
-        if not path:
-            return
-
-        # 3. Datos de Conexión y Autenticación con Reintentos
+        # 2. Datos de Conexión y Autenticación con Reintentos
         while True:  # Bucle de Conexión
             dest_ip = input(">> IP del Receptor: ").strip()
 
@@ -99,65 +92,26 @@ class SecureTransferApp:
                 ).strip()
 
                 try:
-                    print("\n[PROCESANDO ARCHIVO...]")
-                    if (
-                        auth_attempts == 0
-                    ):  # Solo procesar el archivo la primera vez para ahorrar tiempo
-                        print_phase("1. PREPARACIÓN Y COMPRESIÓN")
-                        print_action("Iniciando compresión y sanitización...")
-                        # Compresión
-                        zip_path = self.file_manager.compress_path(path)
-
-                        print_phase("2. INTEGRIDAD (HASHING)")
-                        print_action(
-                            "Calculando hash SHA-256 del archivo comprimido..."
+                    if auth_attempts == 0:
+                        # Enviar archivo por primera vez
+                        success = self.sender.send_interactive(
+                            self.get_input_path, dest_ip, dest_port, 
+                            security_code, session_id
                         )
-                        # Hashing
-                        zip_content = self.file_manager.read_binary(zip_path)
-                        file_hash = self.crypto.generate_hash(zip_content)
-                        print_info(f"Hash SHA-256 original: {file_hash}")
-
-                        print_phase("3. CONFIDENCIALIDAD (CIFRADO)")
-                        print_action("Cifrando datos con AES-256-GCM...")
-                        # Cifrado
-                        encoded_content = base64.b64encode(zip_content)
-                        nonce, ciphertext = self.crypto.encrypt_data(encoded_content)
-
-                        print_phase("4. EMPAQUETADO")
-                        print_action("Generando estructura de transporte (.enc)...")
-                        # Empaquetado
-                        pkg_path = self.file_manager.save_package(
-                            path, nonce, file_hash, ciphertext
-                        )
-                        self.file_manager.cleanup(
-                            zip_path
-                        )  # Limpiar zip temporal del sender
-                        print_success(f"Paquete seguro listo en: {pkg_path}")
                     else:
-                        # Recuperar ruta del paquete ya generado
+                        # Reintentar con paquete ya generado
                         pkg_path = self.file_manager.get_sender_path("payload.enc")
-
-                    # --- ENVÍO POR RED ---
-                    print("\n[TRANSMITIENDO...]")
-                    print_phase("5. TRANSMISIÓN POR RED")
-                    print_action("Iniciando protocolo de transferencia segura...")
-                    original_filename = os.path.basename(path)
-
-                    # Intentar envío
-                    success = self.network.send_file(
-                        dest_ip,
-                        dest_port,
-                        pkg_path,
-                        security_code,
-                        session_id,
-                        original_filename,
-                    )
+                        original_filename = "archivo"  # Se reemplazará en el siguiente envío
+                        success = self.network.send_file(
+                            dest_ip, dest_port, pkg_path, security_code, 
+                            session_id, original_filename
+                        )
 
                     if success:
                         print("\n✅ ENVÍO COMPLETADO.")
                         print_info("El archivo ha sido entregado al receptor.")
                         input("\nPresione Enter para volver...")
-                        return  # Salir de la función sender_flow exitosamente
+                        return
 
                 except ConnectionError as e:
                     print_error(f"Error de conexión: {e}")
@@ -165,9 +119,9 @@ class SecureTransferApp:
                         "¿Desea reintentar ingresando nueva IP/Puerto? (s/n): "
                     ).lower()
                     if retry == "s":
-                        break  # Romper bucle de autenticación para volver a pedir IP/Puerto
+                        break
                     else:
-                        return  # Salir si no quiere reintentar
+                        return
 
                 except PermissionError:
                     auth_attempts += 1
@@ -185,7 +139,7 @@ class SecureTransferApp:
                     return
 
     # ==========================================
-    # FLUJO DE RECEPCIÓN (RECEIVER)
+    # FLUJO DE RECEPCIÓN (RECEIVER) - MODO INTERACTIVO
     # ==========================================
     def receiver_flow(self):
         print_banner()
@@ -225,84 +179,13 @@ class SecureTransferApp:
             choice = input("\nOpción: ").strip()
 
             if choice == "1":
-                self.decrypt_process(file_path)
+                self.receiver.decrypt_interactive(file_path)
+                input("\nPresione Enter para continuar...")
             elif choice == "2":
-                self.validate_integrity(file_path)
+                self.receiver.validate_integrity(file_path)
+                input("\nPresione Enter para continuar...")
             elif choice == "3":
                 break
-
-    def decrypt_process(self, file_path):
-        try:
-            print("\n[DESENCRIPTANDO...]")
-            print_phase("1. LECTURA DEL PAQUETE")
-            print_action("Extrayendo componentes del archivo cifrado...")
-            nonce, original_hash, ciphertext = self.file_manager.read_package(file_path)
-
-            print_phase("2. DESCIFRADO (AES-GCM)")
-            print_action("Verificando autenticidad y descifrando...")
-            decrypted_data = self.crypto.decrypt_data(nonce, ciphertext)
-            print_success(
-                "Descifrado exitoso. La clave es correcta y el Tag GCM es válido."
-            )
-
-            zip_content = base64.b64decode(decrypted_data)
-
-            print_phase("3. VERIFICACIÓN DE INTEGRIDAD")
-            print_action("Recalculando hash SHA-256...")
-            current_hash = self.crypto.generate_hash(zip_content)
-            print_info(f"Hash calculado: {current_hash}")
-            print_info(f"Hash original : {original_hash}")
-
-            if current_hash != original_hash:
-                print_error("¡ERROR DE INTEGRIDAD! Hash no coincide.")
-                print_info(
-                    "Esto indica que el archivo fue modificado después de ser generado por el emisor."
-                )
-                return
-
-            print_success("Integridad verificada. El archivo es auténtico.")
-
-            print_phase("4. DESCOMPRESIÓN")
-            print_action("Restaurando archivos originales...")
-            # Guardar zip temporal en receiver dir
-            temp_zip = os.path.join(
-                self.file_manager.receiver_dir, "temp_decrypted.zip"
-            )
-            self.file_manager.write_binary(temp_zip, zip_content)
-
-            final_path = self.file_manager.decompress_file(temp_zip)
-            self.file_manager.cleanup(temp_zip)
-
-            print_success(f"Archivos extraídos en: {final_path}")
-
-        except Exception as e:
-            print_error(f"Error: {e}")
-
-        input("\nPresione Enter para continuar...")
-
-    def validate_integrity(self, file_path):
-        try:
-            print("\n[VALIDANDO...]")
-            print_phase("VALIDACIÓN DE INTEGRIDAD")
-            print_action("Leyendo paquete...")
-            nonce, original_hash, ciphertext = self.file_manager.read_package(file_path)
-
-            print_action("Descifrando para obtener contenido original...")
-            decrypted_data = self.crypto.decrypt_data(nonce, ciphertext)
-            zip_content = base64.b64decode(decrypted_data)
-
-            print_action("Recalculando Hash...")
-            current_hash = self.crypto.generate_hash(zip_content)
-
-            if current_hash == original_hash:
-                print_success("✅ INTEGRIDAD OK.")
-                print_info("El archivo no ha sufrido alteraciones.")
-            else:
-                print_error("❌ INTEGRIDAD FALLIDA.")
-                print_info("El archivo está corrupto o ha sido manipulado.")
-        except Exception as e:
-            print_error(f"Error: {e}")
-        input("\nPresione Enter para continuar...")
 
     def run(self):
         while True:
@@ -332,7 +215,49 @@ class SecureTransferApp:
 
 if __name__ == "__main__":
     try:
+        parser = crear_parser()
+        args = parser.parse_args()
+        
         app = SecureTransferApp()
-        app.run()
+        
+        # Modo Interactivo
+        if args.interactivo:
+            app.run()
+        
+        # Modo Emisor Automático
+        elif args.emisor:
+            if not args.archivo:
+                parser.error("El modo emisor requiere --archivo/-a")
+            if not args.destino_ip:
+                parser.error("El modo emisor requiere --ip/-d")
+            if not args.codigo:
+                parser.error("El modo emisor requiere --codigo/-c")
+            
+            # Validar puerto
+            if args.puerto < 1024 or args.puerto > 65535:
+                print_error("El puerto debe estar entre 1024 y 65535")
+                sys.exit(1)
+            
+            exito = app.sender.send_auto(args.archivo, args.destino_ip, args.puerto, args.codigo)
+            sys.exit(0 if exito else 1)
+        
+        # Modo Receptor Automático
+        elif args.receptor:
+            if not args.codigo:
+                parser.error("El modo receptor requiere --codigo/-c")
+            
+            # Validar puerto si se especifica
+            if args.puerto != config.DEFAULT_PORT and (args.puerto < 0 or args.puerto > 65535):
+                print_error("El puerto debe estar entre 0 y 65535 (0 = asignación automática)")
+                sys.exit(1)
+            
+            exito = app.receiver.receive_auto(args.puerto, args.codigo, args.desencriptar)
+            sys.exit(0 if exito else 1)
+            
     except KeyboardInterrupt:
+        print("\n\nInterrumpido por el usuario")
         sys.exit(0)
+    except Exception as e:
+        print_error(f"Error fatal: {e}")
+        traceback.print_exc()
+        sys.exit(1)
