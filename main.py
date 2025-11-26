@@ -253,6 +253,11 @@ if __name__ == "__main__":
             
             exito = app.receiver.receive_auto(args.puerto, args.codigo, args.desencriptar)
             sys.exit(0 if exito else 1)
+        
+        # Modo Desencriptar Archivo Local
+        elif args.desencriptar_archivo:
+            exito = app.receiver.decrypt_local_file(args.desencriptar_archivo)
+            sys.exit(0 if exito else 1)
             
     except KeyboardInterrupt:
         print("\n\nInterrumpido por el usuario")

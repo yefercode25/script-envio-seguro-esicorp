@@ -26,6 +26,7 @@ python main.py --interactivo
 ```
 
 **Resultado:**
+
 - Muestra menú principal con opciones
 - Permite seleccionar archivos con diálogo visual
 - Guía paso a paso para envío o recepción
@@ -47,6 +48,7 @@ python main.py --emisor --archivo "C:\ESICORP\Datos\Compras-23-02-2023.santiago"
 ```
 
 **¿Qué hace?**
+
 - Comprime el archivo PDF
 - Calcula hash SHA-256
 - Cifra con AES-256-GCM
@@ -86,6 +88,7 @@ python main.py -e -a "C:\ESICORP\Compras\2023" -d 192.168.1.10 -c 1234
 ```
 
 **¿Qué incluye?**
+
 - Todos los archivos dentro de la carpeta
 - Todas las subcarpetas y su contenido
 - Mantiene la estructura de directorios
@@ -103,6 +106,7 @@ python main.py -e -a "C:\Proyectos\Migracion_Sistema" -d 10.20.30.40 -c 1111
 ```
 
 **El sistema automaticamente:**
+
 1. ✅ Sanitiza nombres de archivos con caracteres especiales
 2. ✅ Comprime toda la estructura en un solo ZIP
 3. ✅ Cifra el paquete completo
@@ -119,6 +123,7 @@ python main.py --receptor --codigo 1234
 ```
 
 **Salida esperada:**
+
 ```
 === MODO RECEPTOR AUTOMÁTICO ===
 
@@ -132,6 +137,7 @@ Esperando conexión...
 ```
 
 **Después de recibir:**
+
 - Archivo queda cifrado en `transfers/[SESION]/receiver/`
 - Requiere desencriptado manual posterior
 
@@ -154,6 +160,7 @@ python main.py --receptor --codigo 1234 --desencriptar
 ```
 
 **Resultado:**
+
 - Recibe el archivo
 - Desencripta automáticamente
 - Verifica integridad SHA-256
@@ -179,11 +186,13 @@ python main.py -r -c 7890 -p 5001 --desencriptar
 ### Caso 6.1: Bogotá → Santiago (Datos de Compras)
 
 **Máquina Receptora (Santiago):**
+
 ```powershell
 python main.py -r -c 2023 --desencriptar
 ```
 
 **Máquina Emisora (Bogotá):**
+
 ```powershell
 python main.py -e -a "C:\ESICORP\Compras\Compras-23-02-2023.santiago" -d 192.168.100.10 -p 54321 -c 2023
 ```
@@ -191,11 +200,13 @@ python main.py -e -a "C:\ESICORP\Compras\Compras-23-02-2023.santiago" -d 192.168
 ### Caso 6.2: Bogotá → Buenos Aires (Reportes de Ventas)
 
 **Máquina Receptora (Buenos Aires):**
+
 ```powershell
 python main.py -r -c 8888 -p 5000 --desencriptar
 ```
 
 **Máquina Emisora (Bogotá):**
+
 ```powershell
 python main.py -e -a "C:\ESICORP\Ventas\Ventas-10-11-2023.buenosaires" -d 10.50.20.30 -p 5000 -c 8888
 ```
@@ -203,11 +214,13 @@ python main.py -e -a "C:\ESICORP\Ventas\Ventas-10-11-2023.buenosaires" -d 10.50.
 ### Caso 6.3: Bogotá → Lima (Carpeta de Finanzas Mensual)
 
 **Máquina Receptora (Lima):**
+
 ```powershell
 python main.py -r -c 4040 --desencriptar
 ```
 
 **Máquina Emisora (Bogotá):**
+
 ```powershell
 python main.py -e -a "C:\ESICORP\Finanzas\Diciembre2023" -d 172.20.10.100 -p 51234 -c 4040
 ```
@@ -219,11 +232,13 @@ python main.py -e -a "C:\ESICORP\Finanzas\Diciembre2023" -d 172.20.10.100 -p 512
 ### Ejemplo 7.1: Prueba en misma máquina (localhost)
 
 **Terminal 1 (Receptor):**
+
 ```powershell
 python main.py -r -c 9999 --desencriptar
 ```
 
 **Terminal 2 (Emisor):**
+
 ```powershell
 python main.py -e -a "C:\test\archivo_prueba.txt" -d 127.0.0.1 -p [PUERTO_MOSTRADO] -c 9999
 ```
@@ -231,195 +246,23 @@ python main.py -e -a "C:\test\archivo_prueba.txt" -d 127.0.0.1 -p [PUERTO_MOSTRA
 ### Ejemplo 7.2: Prueba con carpeta local
 
 **Terminal 1:**
+
 ```powershell
 python main.py -r -c 1111
 ```
 
 **Terminal 2:**
+
 ```powershell
 python main.py -e -a "C:\test\carpeta_prueba" -d 127.0.0.1 -p [PUERTO_MOSTRADO] -c 1111
 ```
 
 ---
 
-## 8. Automatización con Scripts
-
-### Ejemplo 8.1: Script PowerShell para envío nocturno
-
-**envio_automatico.ps1:**
-```powershell
-# Configuración
-$ARCHIVO = "C:\ESICORP\Respaldos\Backup_Diario"
-$IP_DESTINO = "192.168.1.100"
-$PUERTO = "5000"
-$CODIGO = "SecureCode2023"
-
-# Ejecutar envío
-python main.py -e -a $ARCHIVO -d $IP_DESTINO -p $PUERTO -c $CODIGO
-
-# Verificar resultado
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Envío exitoso - $(Get-Date)"
-} else {
-    Write-Host "❌ Error en envío - $(Get-Date)"
-}
-```
-
-**Ejecutar:**
-```powershell
-.\envio_automatico.ps1
-```
-
-### Ejemplo 8.2: Script para envío múltiple a varias sedes
-
-**envio_multisede.ps1:**
-```powershell
-# Configuración de sedes
-$sedes = @(
-    @{Nombre="Santiago"; IP="192.168.1.10"; Codigo="1234"},
-    @{Nombre="Lima"; IP="10.0.0.5"; Codigo="5678"},
-    @{Nombre="BuenosAires"; IP="172.16.10.50"; Codigo="9012"}
-)
-
-$archivo = "C:\ESICORP\Reportes\Reporte-$(Get-Date -Format 'dd-MM-yyyy').pdf"
-
-# Enviar a cada sede
-foreach ($sede in $sedes) {
-    Write-Host "Enviando a $($sede.Nombre)..."
-    python main.py -e -a $archivo -d $($sede.IP) -c $($sede.Codigo)
-    Start-Sleep -Seconds 5
-}
-
-Write-Host "✅ Envío completado a todas las sedes"
-```
-
-### Ejemplo 8.3: Tarea programada (Task Scheduler)
-
-**Crear archivo bat:**
-```batch
-@echo off
-cd C:\ESICORP\ScriptAutomatizacion
-python main.py -e -a "C:\ESICORP\Reportes\Diario" -d 192.168.1.10 -c 2023
-```
-
-**Programar en Task Scheduler:**
-1. Crear nueva tarea
-2. Trigger: Diario a las 23:00
-3. Acción: Ejecutar el archivo .bat
-4. ✅ Envío automático cada noche
-
-### Ejemplo 8.4: Receptor permanente como servicio
-
-**receptor_permanente.ps1:**
-```powershell
-# Configuración
-$CODIGO = "ServiceCode2023"
-$PUERTO = "5000"
-
-Write-Host "Iniciando receptor permanente..."
-
-while ($true) {
-    Write-Host "$(Get-Date) - Esperando conexión..."
-    python main.py -r -c $CODIGO -p $PUERTO --desencriptar
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Archivo recibido y procesado - $(Get-Date)"
-    }
-    
-    Start-Sleep -Seconds 10
-}
-```
-
----
-
-## 9. Ejemplos con Rutas Especiales
-
-### Ejemplo 9.1: Archivo en unidad de red
-
-```powershell
-python main.py -e -a "\\servidor\compartido\Datos\archivo.xlsx" -d 192.168.1.10 -c 1234
-```
-
-### Ejemplo 9.2: Archivo desde USB
-
-```powershell
-python main.py -e -a "D:\Respaldos\backup_2023.zip" -d 192.168.1.10 -c 5678
-```
-
-### Ejemplo 9.3: Archivo con caracteres especiales
-
-```powershell
-python main.py -e -a "C:\Datos\Reporte_2023_[CONFIDENCIAL]_ñ.pdf" -d 192.168.1.10 -c 9999
-```
-
-**Nota:** El sistema sanitiza automáticamente caracteres especiales
-
----
-
-## 10. Verificación y Troubleshooting
-
-### Ejemplo 10.1: Verificar ayuda
-
-```powershell
-python main.py -h
-```
-
-### Ejemplo 10.2: Ver versión de Python
-
-```powershell
-python --version
-```
-
-### Ejemplo 10.3: Verificar dependencias instaladas
-
-```powershell
-pip list | Select-String "cryptography|tqdm"
-```
-
-### Ejemplo 10.4: Limpiar sesiones antiguas
-
-```powershell
-# Usar modo interactivo y elegir opción 3
-python main.py -i
-# Opción: 3 (Borrar historial de transferencias)
-```
-
----
-
-## 📌 Tips y Mejores Prácticas
-
-### ✅ Recomendaciones:
-
-1. **Códigos de seguridad:**
-   - Usar mínimo 4 caracteres
-   - Combinar números y letras
-   - Cambiar periódicamente
-
-2. **Puertos:**
-   - Usar puertos > 1024 (no privilegiados)
-   - Puerto 0 para asignación automática
-   - Abrir puertos en firewall si es necesario
-
-3. **Rutas de archivos:**
-   - Usar comillas para nombres con espacios
-   - Verificar que existan antes de enviar
-   - Usar rutas absolutas
-
-4. **Carpetas:**
-   - El sistema comprime todo el contenido
-   - Mantiene estructura de directorios
-   - No incluir carpetas muy grandes (>2GB) para mejor rendimiento
-
-5. **Automatización:**
-   - Probar manualmente primero
-   - Verificar códigos de salida ($LASTEXITCODE)
-   - Registrar logs de envíos
-
----
-
 ## 🆘 Errores Comunes y Soluciones
 
 ### Error: "El archivo no existe"
+
 ```powershell
 # ❌ Incorrecto (ruta mal escrita)
 python main.py -e -a "C:\Datos\archivo.txt" -d 192.168.1.10 -c 1234
@@ -429,6 +272,7 @@ python main.py -e -a "C:\ESICORP\Datos\archivo.txt" -d 192.168.1.10 -c 1234
 ```
 
 ### Error: "Puerto inválido"
+
 ```powershell
 # ❌ Incorrecto (puerto < 1024)
 python main.py -e -a "archivo.txt" -d 192.168.1.10 -p 80 -c 1234
@@ -438,6 +282,7 @@ python main.py -e -a "archivo.txt" -d 192.168.1.10 -p 5000 -c 1234
 ```
 
 ### Error: "No se pudo establecer conexión"
+
 ```powershell
 # Solución: Verificar que el receptor esté escuchando primero
 # Terminal 1: Iniciar receptor
@@ -446,13 +291,3 @@ python main.py -r -c 1234
 # Terminal 2: Enviar después de ver "Esperando conexión..."
 python main.py -e -a "archivo.txt" -d 192.168.1.10 -p [PUERTO] -c 1234
 ```
-
----
-
-## 📞 Contacto y Soporte
-
-Para más información sobre el proyecto ESICORP, consultar el archivo `README.md` principal.
-
----
-
-**Última actualización:** Noviembre 2025

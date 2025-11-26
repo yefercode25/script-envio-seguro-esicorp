@@ -25,10 +25,15 @@ EJEMPLOS DE USO:
   Modo Receptor con Desencriptado Automático:
     python main.py --receptor --codigo 1234 --desencriptar
 
+  Desencriptar Archivo Local:
+    python main.py --desencriptar-archivo "transfers/20231126_140000/receiver/payload.enc"
+    python main.py -da "ruta/al/archivo.enc"
+
 NOTAS:
   - El código de seguridad debe coincidir entre emisor y receptor
   - Los archivos se cifran con AES-256-GCM antes de enviarse
   - Se incluye verificación de integridad mediante SHA-256
+  - Para desencriptar archivos .enc existentes, usa --desencriptar-archivo
         '''
     )
     
@@ -40,6 +45,8 @@ NOTAS:
                            help='Modo emisor: enviar archivo')
     grupo_modo.add_argument('--receptor', '-r', action='store_true',
                            help='Modo receptor: recibir archivo')
+    grupo_modo.add_argument('--desencriptar-archivo', '-da', type=str, metavar='ARCHIVO',
+                           help='Desencriptar un archivo .enc existente')
     
     # Argumentos para modo emisor
     parser.add_argument('--archivo', '-a', type=str,

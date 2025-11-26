@@ -83,6 +83,82 @@ class Receiver:
             traceback.print_exc()
             return False
 
+    def decrypt_local_file(self, enc_file_path):
+        """Desencripta un archivo .enc local sin necesidad de transmisión de red."""
+        print_banner()
+        print("=== DESENCRIPTADO DE ARCHIVO LOCAL ===\n")
+        
+        # Validar que el archivo existe
+        if not os.path.exists(enc_file_path):
+            print_error(f"El archivo no existe: {enc_file_path}")
+            return False
+        
+        # Validar extensión
+        if not enc_file_path.endswith('.enc'):
+            print_error("El archivo debe tener extensión .enc")
+            return False
+        
+        print_info(f"Archivo: {enc_file_path}\n")
+        
+        try:
+            # Crear una sesión temporal para el desencriptado
+            from datetime import datetime
+            session_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_local"
+            self.file_manager.setup_session(session_id)
+            
+            print_phase("PROCESO DE DESENCRIPTADO")
+            
+            print_action("1. Leyendo paquete cifrado...")
+            nonce, original_hash, ciphertext = self.file_manager.read_package(enc_file_path)
+            print_info(f"   - Nonce: {nonce.hex()[:20]}...")
+            print_info(f"   - Hash original: {original_hash[:32]}...")
+            print_info(f"   - Tamaño cifrado: {len(ciphertext)} bytes")
+            
+            print_action("2. Descifrando con AES-256-GCM...")
+            decrypted_data = self.crypto.decrypt_data(nonce, ciphertext)
+            print_success("   ✓ Descifrado exitoso")
+            
+            print_action("3. Decodificando Base64...")
+            zip_content = base64.b64decode(decrypted_data)
+            print_info(f"   - Tamaño descomprimido: {len(zip_content)} bytes")
+            
+            print_action("4. Verificando integridad (SHA-256)...")
+            current_hash = self.crypto.generate_hash(zip_content)
+            print_info(f"   - Hash calculado: {current_hash[:32]}...")
+            print_info(f"   - Hash esperado:  {original_hash[:32]}...")
+            
+            if current_hash != original_hash:
+                print_error("❌ ERROR DE INTEGRIDAD - Los hashes no coinciden")
+                print_info("El archivo puede estar corrupto o haber sido modificado")
+                return False
+            
+            print_success("   ✓ Integridad verificada correctamente")
+            
+            print_action("5. Descomprimiendo archivos...")
+            temp_zip = os.path.join(self.file_manager.receiver_dir, "temp_local_decrypt.zip")
+            self.file_manager.write_binary(temp_zip, zip_content)
+            final_path = self.file_manager.decompress_file(temp_zip)
+            self.file_manager.cleanup(temp_zip)
+            
+            print_success(f"\n✅ DESENCRIPTADO COMPLETADO EXITOSAMENTE")
+            print_info(f"\nArchivos extraídos en:")
+            print_info(f"  {final_path}")
+            
+            # Listar archivos extraídos
+            if os.path.exists(final_path):
+                print_info("\nContenido:")
+                for root, dirs, files in os.walk(final_path):
+                    for file in files:
+                        rel_path = os.path.relpath(os.path.join(root, file), final_path)
+                        print_info(f"  - {rel_path}")
+            
+            return True
+            
+        except Exception as e:
+            print_error(f"Error durante el desencriptado: {e}")
+            traceback.print_exc()
+            return False
+
     def decrypt_interactive(self, file_path):
         """Desencripta interactivamente un archivo (usado por el menú)."""
         try:
