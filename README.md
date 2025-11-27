@@ -337,10 +337,11 @@ Desarrollado para **ESICORP** - Financiera establecida en 1930
 - Programa: Especialización en Seguridad Informática
 - Institución: Universidad Nacional Abierta y a Distancia (UNAD)
 - Integrantes del grupo:
-  - MILLER ALEXANDER PARDO OVEJERO
+  - *MILLER ALEXANDER PARDO OVEJERO*
   - *OSCAR YESID BERNAL RODRÍGUEZ*
   - *YEFERSON CAMILO ZAQUE BAUTISTA*
   - *JOAQUIN JESUS VALLEJO*
+  - *YEFERSON CAMILO ZAQUE BAUTISTA*
 
 ## 📝 Licencia
 
