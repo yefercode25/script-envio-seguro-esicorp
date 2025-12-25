@@ -349,4 +349,223 @@ Este proyecto es de uso interno exclusivo de ESICORP.
 
 ---
 
-**Última actualización**: Noviembre 2025
+## 🔐 Script SFTP Auto-Configurable (esicorp_final.py)
+
+### Descripción
+
+Script Python robusto y auto-configurable que automatiza el envío seguro de archivos desde Windows hacia servidores Linux usando SFTP. El script gestiona automáticamente sus propias llaves criptográficas RSA.
+
+### Características Principales
+
+- ✅ **Auto-configuración de Llaves**: Genera automáticamente llaves RSA de 4096 bits si no existen
+- ✅ **Integridad**: Verificación mediante hash SHA-256
+- ✅ **Codificación**: Conversión a Base64 antes del cifrado
+- ✅ **Confidencialidad**: Cifrado AES-256-CBC con clave y IV únicos
+- ✅ **Empaquetado**: Archivos comprimidos en formato ZIP
+- ✅ **Transmisión Segura**: SFTP con autenticación por llave pública
+
+### Flujo de Funcionamiento
+
+#### 1. Módulo de Auto-Configuración (PRIORITARIO)
+
+El script verifica automáticamente si existen las llaves RSA en `./keys`:
+
+- **Si NO existen**:
+  - Genera un nuevo par de llaves RSA de 4096 bits
+  - Guarda `id_rsa` (llave privada) y `id_rsa.pub` (llave pública)
+  - **IMPORTANTE**: El script se detiene y muestra un mensaje de advertencia visible
+  - El usuario debe copiar el contenido de `./keys/id_rsa.pub` al archivo `~/.ssh/authorized_keys` en el servidor Linux
+  - El usuario presiona ENTER para continuar después de configurar el servidor
+
+#### 2. Módulo de Procesamiento de Archivos
+
+Busca archivos en `./salida` que cumplan con el patrón regex: `Area-DD-MM-AAAA.Sede`
+
+Ejemplos válidos:
+- `Finanzas-12-12-2025.lima`
+- `Compras-23-02-2023.santiago`
+- `Ventas-10-11-2023.buenosaires`
+
+Para cada archivo encontrado:
+
+1. **Integridad**: Calcula hash SHA-256 → guarda como `.hash.txt`
+2. **Codificación**: Convierte el archivo a Base64
+3. **Confidencialidad**: Cifra el Base64 usando AES-256-CBC → guarda como `.enc`
+4. **Empaquetado**: Crea archivo ZIP conteniendo:
+   - Archivo cifrado (`.enc`)
+   - Hash de integridad (`.hash.txt`)
+   - Metadata del procesamiento
+
+#### 3. Módulo de Transmisión SFTP
+
+- Conecta al servidor Linux usando `paramiko`
+- Autentica mediante la llave privada RSA generada/validada
+- Sube el archivo ZIP al servidor
+- Manejo robusto de errores con mensajes instructivos
+
+### Configuración del Servidor SFTP
+
+Editar las siguientes variables en `esicorp_final.py`:
+
+```python
+SFTP_CONFIG = {
+    'hostname': '192.168.1.100',  # IP del servidor Linux
+    'port': 22,                     # Puerto SSH/SFTP
+    'username': 'esicorp',          # Usuario SFTP
+    'remote_path': '/home/esicorp/uploads/'  # Ruta remota de destino
+}
+```
+
+### Instalación de Dependencias
+
+```powershell
+pip install -r requirements.txt
+```
+
+Librerías requeridas:
+- `cryptography` (generación de llaves RSA, cifrado AES-256)
+- `paramiko` (cliente SFTP)
+- Módulos estándar: `os`, `re`, `hashlib`, `base64`, `zipfile`
+
+### Uso del Script
+
+#### Paso 1: Preparar Archivos
+
+Coloque los archivos a enviar en la carpeta `./salida`:
+
+```powershell
+mkdir salida
+# Copiar archivos con formato: Area-DD-MM-AAAA.Sede
+cp Finanzas-25-12-2025.lima ./salida/
+```
+
+#### Paso 2: Ejecutar el Script
+
+```powershell
+python esicorp_final.py
+```
+
+#### Paso 3: Primera Ejecución (Configuración de Llaves)
+
+Si es la primera vez que ejecuta el script:
+
+1. El script generará automáticamente las llaves RSA
+2. Mostrará un mensaje de advertencia con instrucciones
+3. **DEBE** copiar el contenido de `./keys/id_rsa.pub` al servidor Linux:
+
+```bash
+# En el servidor Linux, ejecutar:
+mkdir -p ~/.ssh
+echo 'ssh-rsa AAAA...[CONTENIDO_COMPLETO]...== esicorp' >> ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+4. Presionar ENTER en el script para continuar
+
+#### Paso 4: Verificar Transferencia
+
+El script mostrará el progreso:
+
+```
+═══════════════════════════════════════════════════════════════
+           ESICORP - Sistema de Transferencia Segura
+                  Auto-Configurable SFTP
+═══════════════════════════════════════════════════════════════
+
+PASO 1: VERIFICACIÓN DE LLAVES RSA (AUTENTICACIÓN)
+✅ Llaves RSA encontradas
+
+PASO 2: BÚSQUEDA Y PROCESAMIENTO DE ARCHIVOS
+✅ Encontrados 1 archivo(s)
+📄 Procesando: Finanzas-25-12-2025.lima
+🔍 [INTEGRIDAD] Calculando hash SHA-256...
+📝 [CODIFICACIÓN] Convirtiendo a Base64...
+🔐 [CONFIDENCIALIDAD] Cifrando con AES-256-CBC...
+📦 [EMPAQUETADO] Creando archivo ZIP...
+✅ Procesamiento completado
+
+PASO 3: CONEXIÓN SFTP AL SERVIDOR LINUX
+✅ Conexión SFTP establecida exitosamente
+📤 Enviando archivo al servidor...
+✅ Enviado exitosamente
+
+🎉 ¡PROCESO COMPLETADO EXITOSAMENTE! 🎉
+```
+
+### Estructura de Directorios
+
+```
+ScriptAutomatizacion/
+├── esicorp_final.py      # Script principal SFTP
+├── keys/                 # Llaves RSA (generadas automáticamente)
+│   ├── id_rsa           # Llave privada (NO compartir)
+│   └── id_rsa.pub       # Llave pública (copiar al servidor)
+├── salida/              # Archivos a enviar (input)
+│   └── Area-DD-MM-AAAA.Sede
+└── procesados/          # Archivos procesados (output)
+    └── Area-DD-MM-AAAA.zip
+```
+
+### Solución de Problemas
+
+#### Error: "AuthenticationFailed"
+
+**Síntoma**: El script no puede conectar al servidor SFTP
+
+**Solución**:
+1. Verificar que copió correctamente el contenido de `id_rsa.pub` al servidor
+2. Verificar permisos del archivo `~/.ssh/authorized_keys` (debe ser 600)
+3. Verificar que el directorio `~/.ssh` tiene permisos 700
+
+```bash
+# En el servidor Linux:
+ls -la ~/.ssh/
+# Debe mostrar:
+# drwx------  .ssh/
+# -rw-------  authorized_keys
+```
+
+#### Error: "No se encontraron archivos"
+
+**Síntoma**: El script no encuentra archivos en `./salida`
+
+**Solución**:
+- Verificar que los archivos cumplan con el patrón: `Area-DD-MM-AAAA.Sede`
+- Ejemplos válidos:
+  - ✅ `Finanzas-12-12-2025.lima`
+  - ✅ `Compras-23-02-2023.santiago`
+  - ❌ `archivo.txt` (no cumple el patrón)
+  - ❌ `Finanzas-12-2025.lima` (formato de fecha incorrecto)
+
+#### Error: "Falta instalar dependencias"
+
+**Solución**:
+```powershell
+pip install -r requirements.txt
+```
+
+### Seguridad
+
+El script implementa múltiples capas de seguridad según los estándares de ESICORP:
+
+| Aspecto | Implementación | Algoritmo |
+|---------|----------------|-----------|
+| **Autenticación** | Llave pública RSA | RSA 4096 bits |
+| **Integridad** | Hash del archivo | SHA-256 |
+| **Codificación** | Compatibilidad de transmisión | Base64 |
+| **Confidencialidad** | Cifrado simétrico | AES-256-CBC |
+| **Transmisión** | Protocolo seguro | SFTP sobre SSH |
+
+### Comentarios en el Código
+
+El código incluye comentarios explicativos que identifican qué parte cumple con cada requisito:
+
+- `# AUTENTICACIÓN:` - Generación y uso de llaves RSA
+- `# INTEGRIDAD:` - Cálculo y verificación de hashes SHA-256
+- `# CODIFICACIÓN:` - Conversión a Base64
+- `# CONFIDENCIALIDAD:` - Cifrado AES-256-CBC
+
+---
+
+**Última actualización**: Diciembre 2025

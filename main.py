@@ -1,266 +1,314 @@
 import sys
-import os
-import random
 import traceback
-import tkinter as tk
-from datetime import datetime
-from tkinter import filedialog
 from src import config
-from src.crypto_manager import CryptoManager
-from src.file_manager import FileManager
-from src.network_manager import NetworkManager
+from src.sftp_manager import SFTPManager
+from src.esicorp_processor import ESICORPProcessor
+from src.network_utils import mostrar_info_servidor
 from src.cli_parser import crear_parser
-from src.sender import Sender
-from src.receiver import Receiver
-from src.utils import (
-    print_banner,
-    print_success,
-    print_error,
-    print_info,
-)
+from src.utils import print_banner, print_error, print_info
 
 
-class SecureTransferApp:
+class ESICORPApp:
+    """Aplicación ESICORP - Transferencia segura vía SFTP/SSH."""
+
     def __init__(self):
-        self.crypto = CryptoManager()
-        self.file_manager = FileManager()
-        self.network = NetworkManager()
-        self.sender = Sender(self.crypto, self.file_manager, self.network)
-        self.receiver = Receiver(self.crypto, self.file_manager, self.network)
-
-    def select_path_dialog(self, select_folder=False):
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        if select_folder:
-            path = filedialog.askdirectory(title="Seleccione la carpeta")
-        else:
-            path = filedialog.askopenfilename(title="Seleccione el archivo")
-        root.destroy()
-        return path
-
-    def get_input_path(self):
-        print("\n--- SELECCIÓN DE ORIGEN ---")
-        print("1. 📄 Seleccionar Archivo (Diálogo)")
-        print("2. 📁 Seleccionar Carpeta (Diálogo)")
-
-        choice = input("\nOpción [1-2]: ").strip()
-        path = ""
-        if choice == "1":
-            path = self.select_path_dialog(select_folder=False)
-        elif choice == "2":
-            path = self.select_path_dialog(select_folder=True)
-
-        if not path:
-            print_error("No se seleccionó ninguna ruta.")
-            return None
-        return path
-
-    # ==========================================
-    # FLUJO DE ENVÍO (SENDER) - MODO INTERACTIVO
-    # ==========================================
-    def sender_flow(self):
-        print_banner()
-        print("=== MODO EMISOR ===")
-
-        # 1. Configurar Sesión (Timestamp)
-        session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.file_manager.setup_session(session_id)
-        print_info(f"ID de Sesión generado: {session_id}")
-
-        # 2. Datos de Conexión y Autenticación con Reintentos
-        while True:  # Bucle de Conexión
-            dest_ip = input(">> IP del Receptor: ").strip()
-
-            # Validación de Puerto Emisor
-            while True:
-                port_input = input(f">> Puerto [{config.DEFAULT_PORT}]: ").strip()
-                if not port_input:
-                    dest_port = config.DEFAULT_PORT
-                    break
-                if port_input.isdigit() and 1024 <= int(port_input) <= 65535:
-                    dest_port = port_input
-                    break
-                print_error("Puerto inválido.")
-
-            auth_attempts = 0
-            max_auth_attempts = 5
-
-            while auth_attempts < max_auth_attempts:  # Bucle de Autenticación
-                security_code = input(
-                    f">> Código de Seguridad (Intento {auth_attempts + 1}/{max_auth_attempts}): "
-                ).strip()
-
-                try:
-                    if auth_attempts == 0:
-                        # Enviar archivo por primera vez
-                        success = self.sender.send_interactive(
-                            self.get_input_path, dest_ip, dest_port, 
-                            security_code, session_id
-                        )
-                    else:
-                        # Reintentar con paquete ya generado
-                        pkg_path = self.file_manager.get_sender_path("payload.enc")
-                        original_filename = "archivo"  # Se reemplazará en el siguiente envío
-                        success = self.network.send_file(
-                            dest_ip, dest_port, pkg_path, security_code, 
-                            session_id, original_filename
-                        )
-
-                    if success:
-                        print("\n✅ ENVÍO COMPLETADO.")
-                        print_info("El archivo ha sido entregado al receptor.")
-                        input("\nPresione Enter para volver...")
-                        return
-
-                except ConnectionError as e:
-                    print_error(f"Error de conexión: {e}")
-                    retry = input(
-                        "¿Desea reintentar ingresando nueva IP/Puerto? (s/n): "
-                    ).lower()
-                    if retry == "s":
-                        break
-                    else:
-                        return
-
-                except PermissionError:
-                    auth_attempts += 1
-                    print_error(f"Código de seguridad incorrecto.")
-                    if auth_attempts >= max_auth_attempts:
-                        print_error(
-                            "❌ Se ha excedido el número máximo de intentos de autenticación."
-                        )
-                        input("\nPresione Enter para volver...")
-                        return
-
-                except Exception as e:
-                    print_error(f"Error crítico: {e}")
-                    traceback.print_exc()
-                    return
-
-    # ==========================================
-    # FLUJO DE RECEPCIÓN (RECEIVER) - MODO INTERACTIVO
-    # ==========================================
-    def receiver_flow(self):
-        print_banner()
-        print("=== MODO RECEPTOR ===")
-
-        # Generar código aleatorio de 4 dígitos
-        security_code = str(random.randint(1000, 9999))
-
-        # Usar puerto 0 para asignación automática
-        port = 0
-
-        print("\nIniciando servidor seguro...")
-        received_file, session_id, original_filename = self.network.start_server(
-            port, security_code
+        self.sftp_mgr = SFTPManager(keys_dir=config.KEYS_DIR)
+        self.processor = ESICORPProcessor(
+            salida_dir=config.SALIDA_DIR, procesados_dir=config.PROCESADOS_DIR
         )
 
-        if received_file and session_id:
-            # Sincronizar sesión en el receptor
-            self.file_manager.setup_session(session_id)
-            print_info(f"Sesión sincronizada: {session_id}")
-            self.receiver_menu(received_file, original_filename)
+    # ==========================================
+    # FLUJO ESICORP SFTP - ENVÍO DE ARCHIVOS
+    # ==========================================
+    def enviar_archivos(self):
+        """Flujo principal: Procesar y enviar archivos vía SFTP."""
+        print_banner()
+        print("=== ENVÍO DE ARCHIVOS VÍA SFTP ===\n")
+
+        # PASO 1: Verificar/Generar llaves RSA
+        print("=" * 60)
+        print("PASO 1: VERIFICACIÓN DE LLAVES RSA")
+        print("=" * 60)
+
+        if not self.sftp_mgr.verificar_llaves():
+            print("⚠️  No se encontraron llaves RSA.")
+            generar = input(
+                "¿Desea generar nuevas llaves de 4096 bits? (s/n): "
+            ).lower()
+            if generar == "s":
+                priv, pub = self.sftp_mgr.generar_llaves()
+                if not priv:
+                    print_error("No se pudieron generar las llaves. Abortando.")
+                    input("\nPresione Enter para continuar...")
+                    return
+
+                # Solicitar configuración del servidor
+                hostname = input("\n>> IP del servidor SFTP: ").strip()
+                username = input(">> Usuario SFTP: ").strip()
+
+                self.sftp_mgr.mostrar_instrucciones_configuracion(hostname, username)
+                input("\n➡️  Presione ENTER cuando haya configurado el servidor... ")
+            else:
+                print_error("Llaves requeridas para continuar. Abortando.")
+                input("\nPresione Enter para continuar...")
+                return
         else:
-            # Si retorna None es porque el usuario canceló con Ctrl+C o hubo error crítico
-            pass
-            input("\nPresione Enter para volver...")
+            print("✅ Llaves RSA encontradas\n")
 
-    def receiver_menu(self, file_path, original_filename):
+        # PASO 2: Seleccionar archivos a procesar
+        print("\n" + "=" * 60)
+        print("PASO 2: SELECCIÓN DE ARCHIVOS")
+        print("=" * 60)
+        print("\n1. 📂 Usar archivos de ./salida (patrón ESICORP)")
+        print("2. 📝 Seleccionar archivo/carpeta manualmente")
+
+        opcion = input("\nOpción [1-2]: ").strip()
+
+        if opcion == "2":
+            # Selección manual
+            from src.file_selector import solicitar_archivo_o_carpeta
+
+            ruta, es_carpeta = solicitar_archivo_o_carpeta()
+
+            if not ruta:
+                print_info("Selección cancelada.")
+                input("\nPresione Enter para continuar...")
+                return
+
+            # Procesar desde ruta personalizada
+            archivos_procesados = self.processor.procesar_desde_ruta(ruta, es_carpeta)
+        else:
+            # Procesar desde ./salida
+            archivos_procesados = self.processor.procesar_todos()
+
+        if not archivos_procesados:
+            print_info("No hay archivos para enviar.")
+            input("\nPresione Enter para continuar...")
+            return
+
+        # PASO 3: Configurar conexión SFTP
+        print("\n" + "=" * 60)
+        print("PASO 3: CONFIGURACIÓN Y ENVÍO SFTP")
+        print("=" * 60)
+
+        hostname = (
+            input("\n>> IP del servidor SFTP: ").strip()
+            or config.SFTP_CONFIG["hostname"]
+        )
+        username = input(">> Usuario SFTP: ").strip() or config.SFTP_CONFIG["username"]
+        port = input(">> Puerto SFTP [22]: ").strip()
+        port = int(port) if port.isdigit() else 22
+        remote_path = (
+            input(">> Ruta remota [/home/esicorp/uploads/]: ").strip()
+            or config.SFTP_CONFIG["remote_path"]
+        )
+
+        # Conectar SFTP
+        sftp_client, ssh_client = self.sftp_mgr.conectar_sftp(
+            hostname=hostname, username=username, port=port
+        )
+
+        if not sftp_client:
+            print_error("No se pudo establecer conexión SFTP.")
+            print_info(f"Archivos procesados en: {config.PROCESADOS_DIR}")
+            input("\nPresione Enter para continuar...")
+            return
+
+        try:
+            # Enviar archivos
+            exitosos = 0
+            for zip_file in archivos_procesados:
+                remote_file = remote_path + zip_file.name
+                if self.sftp_mgr.subir_archivo(sftp_client, zip_file, remote_file):
+                    exitosos += 1
+
+            print("\n" + "=" * 60)
+            print(
+                f"✅ Resultado: {exitosos}/{len(archivos_procesados)} archivos enviados"
+            )
+            print("=" * 60)
+
+            if exitosos == len(archivos_procesados):
+                print("\n🎉 ¡PROCESO COMPLETADO EXITOSAMENTE!")
+
+        finally:
+            self.sftp_mgr.cerrar_conexion(sftp_client, ssh_client)
+
+        input("\nPresione Enter para continuar...")
+
+    # ==========================================
+    # MOSTRAR INFORMACIÓN DEL SERVIDOR
+    # ==========================================
+    def mostrar_info(self):
+        """Muestra información del servidor para conexiones entrantes."""
+        from src.display_utils import mostrar_info_completa
+        
+        # Mostrar toda la información
+        mostrar_info_completa()
+        
+        input("\nPresione Enter para continuar...")
+
+    # ==========================================
+    # GESTIÓN DE LLAVES
+    # ==========================================
+    def gestionar_llaves(self):
+        """Gestiona las llaves RSA (ver, generar, eliminar)."""
         while True:
             print_banner()
-            print(f"ARCHIVO RECIBIDO: {original_filename}")
-            print(f"UBICACIÓN TEMPORAL: {file_path}")
-            print("-" * 40)
-            print("1. 🔓 Desencriptar y Descomprimir")
-            print("2. 🔍 Validar Integridad (Hash)")
-            print("3. 🔙 Volver al Menú Principal")
+            print("=== GESTIÓN DE LLAVES RSA ===\n")
 
-            choice = input("\nOpción: ").strip()
+            if self.sftp_mgr.verificar_llaves():
+                print("✅ Llaves RSA existentes:")
+                print(f"   Privada: {self.sftp_mgr.private_key_path}")
+                print(f"   Pública: {self.sftp_mgr.public_key_path}\n")
+                print("1. 👁️  Ver llave pública")
+                print("2. 🔄 Regenerar llaves")
+                print("3. 🔙 Volver")
+                opcion = input("\nOpción [1-3]: ").strip()
 
-            if choice == "1":
-                self.receiver.decrypt_interactive(file_path)
-                input("\nPresione Enter para continuar...")
-            elif choice == "2":
-                self.receiver.validate_integrity(file_path)
-                input("\nPresione Enter para continuar...")
-            elif choice == "3":
-                break
+                if opcion == "1":
+                    try:
+                        with open(self.sftp_mgr.public_key_path, "r") as f:
+                            print("\n" + "=" * 60)
+                            print("LLAVE PÚBLICA RSA:")
+                            print("=" * 60)
+                            print(f.read())
+                            print("=" * 60)
+                    except Exception as e:
+                        print_error(f"Error al leer llave: {e}")
+                    input("\nPresione Enter para continuar...")
+                elif opcion == "2":
+                    confirmar = input(
+                        "¿Regenerar llaves? Esto invalidará la llave actual (s/n): "
+                    ).lower()
+                    if confirmar == "s":
+                        self.sftp_mgr.generar_llaves(force=True)
+                        input("\nPresione Enter para continuar...")
+                elif opcion == "3":
+                    break
+            else:
+                print("⚠️  No hay llaves RSA generadas.\n")
+                print("1. 🔑 Generar llaves nuevas")
+                print("2. 🔙 Volver")
+                opcion = input("\nOpción [1-2]: ").strip()
 
+                if opcion == "1":
+                    self.sftp_mgr.generar_llaves()
+                    input("\nPresione Enter para continuar...")
+                elif opcion == "2":
+                    break
+
+    # ==========================================
+    # MENÚ PRINCIPAL
+    # ==========================================
     def run(self):
+        """Ejecuta el menú principal de la aplicación."""
         while True:
             print_banner()
-            print("1. 📤 MODO EMISOR")
-            print("2. 📥 MODO RECEPTOR")
-            print("3. 🗑️  BORRAR HISTORIAL DE TRANSFERENCIAS")
-            print("4. 🚪 SALIR")
+            print("1. 📤 ENVIAR ARCHIVOS (SFTP)")
+            print("2. 📋 INFORMACIÓN DEL SERVIDOR")
+            print("3. 🔑 GESTIÓN DE LLAVES RSA")
+            print("4. 🔧 VERIFICAR/CONFIGURAR SSH")
+            print("5. 🚪 SALIR")
             print("\n")
 
-            option = input("Seleccione opción [1-4]: ")
+            option = input("Seleccione opción [1-5]: ").strip()
 
             if option == "1":
-                self.sender_flow()
+                self.enviar_archivos()
             elif option == "2":
-                self.receiver_flow()
+                self.mostrar_info()
             elif option == "3":
-                confirm = input(
-                    "¿Está seguro de borrar todo el historial de transferencias? (s/n): "
-                ).lower()
-                if confirm == "s":
-                    self.file_manager.clear_all_transfers()
-                input("\nPresione Enter para continuar...")
+                self.gestionar_llaves()
             elif option == "4":
+                self.verificar_ssh()
+            elif option == "5":
+                print("\n👋 ¡Hasta luego!")
                 break
 
+    # ==========================================
+    # VERIFICACIÓN DE SSH
+    # ==========================================
+    def verificar_ssh(self):
+        """Verifica y configura el servicio SSH."""
+        from src.ssh_service import verificar_y_configurar_ssh
 
+        # NO borrar pantalla
+        verificar_y_configurar_ssh()
+        input("\nPresione Enter para continuar...")
+
+
+# ==========================================
+# PUNTO DE ENTRADA PRINCIPAL
+# ==========================================
 if __name__ == "__main__":
     try:
         parser = crear_parser()
         args = parser.parse_args()
-        
-        app = SecureTransferApp()
-        
+
+        app = ESICORPApp()
+
         # Modo Interactivo
         if args.interactivo:
             app.run()
-        
-        # Modo Emisor Automático
-        elif args.emisor:
-            if not args.archivo:
-                parser.error("El modo emisor requiere --archivo/-a")
-            if not args.destino_ip:
-                parser.error("El modo emisor requiere --ip/-d")
-            if not args.codigo:
-                parser.error("El modo emisor requiere --codigo/-c")
-            
-            # Validar puerto
-            if args.puerto < 1024 or args.puerto > 65535:
-                print_error("El puerto debe estar entre 1024 y 65535")
+
+        # Modo ESICORP SFTP (CLI)
+        elif args.esicorp:
+            print_banner()
+            print("=== MODO ESICORP SFTP (AUTOMÁTICO) ===\n")
+
+            # Verificar/generar llaves
+            if not app.sftp_mgr.verificar_llaves():
+                print("⚠️  Generando llaves RSA...")
+                priv, pub = app.sftp_mgr.generar_llaves()
+                if not priv:
+                    print_error("No se pudieron generar las llaves.")
+                    sys.exit(1)
+
+            # Procesar archivos
+            archivos_procesados = app.processor.procesar_todos()
+            if not archivos_procesados:
+                print_info("No hay archivos para procesar.")
+                sys.exit(0)
+
+            # Configuración SFTP
+            hostname = args.sftp_host or config.SFTP_CONFIG["hostname"]
+            username = args.sftp_user or config.SFTP_CONFIG["username"]
+            port = args.sftp_port or config.SFTP_CONFIG["port"]
+            remote_path = args.sftp_path or config.SFTP_CONFIG["remote_path"]
+
+            # Conectar y enviar
+            sftp_client, ssh_client = app.sftp_mgr.conectar_sftp(
+                hostname=hostname, username=username, port=port
+            )
+
+            if not sftp_client:
+                print_error("No se pudo establecer conexión SFTP.")
                 sys.exit(1)
-            
-            exito = app.sender.send_auto(args.archivo, args.destino_ip, args.puerto, args.codigo)
-            sys.exit(0 if exito else 1)
-        
-        # Modo Receptor Automático
-        elif args.receptor:
-            if not args.codigo:
-                parser.error("El modo receptor requiere --codigo/-c")
-            
-            # Validar puerto si se especifica
-            if args.puerto != config.DEFAULT_PORT and (args.puerto < 0 or args.puerto > 65535):
-                print_error("El puerto debe estar entre 0 y 65535 (0 = asignación automática)")
-                sys.exit(1)
-            
-            exito = app.receiver.receive_auto(args.puerto, args.codigo, args.desencriptar)
-            sys.exit(0 if exito else 1)
-        
-        # Modo Desencriptar Archivo Local
-        elif args.desencriptar_archivo:
-            exito = app.receiver.decrypt_local_file(args.desencriptar_archivo)
-            sys.exit(0 if exito else 1)
-            
+
+            try:
+                exitosos = 0
+                for zip_file in archivos_procesados:
+                    remote_file = remote_path + zip_file.name
+                    if app.sftp_mgr.subir_archivo(sftp_client, zip_file, remote_file):
+                        exitosos += 1
+
+                if exitosos == len(archivos_procesados):
+                    print("\n🎉 ¡PROCESO COMPLETADO EXITOSAMENTE!")
+                    sys.exit(0)
+                else:
+                    sys.exit(1)
+            finally:
+                app.sftp_mgr.cerrar_conexion(sftp_client, ssh_client)
+
+        # Mostrar información del servidor
+        elif hasattr(args, "info") and args.info:
+            print_banner()
+            mostrar_info_servidor()
+            sys.exit(0)
+
     except KeyboardInterrupt:
-        print("\n\nInterrumpido por el usuario")
+        print("\n\n⚠️  Interrumpido por el usuario")
         sys.exit(0)
     except Exception as e:
         print_error(f"Error fatal: {e}")

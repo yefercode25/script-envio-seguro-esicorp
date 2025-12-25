@@ -1,293 +1,504 @@
-# 📚 Ejemplos de Uso - Sistema de Transferencia Segura ESICORP
+# 📚 Ejemplos de Uso - ESICORP SFTP
 
-Este documento contiene ejemplos prácticos de uso del sistema en diferentes escenarios reales.
-
----
-
-## 🎯 Índice de Ejemplos
-
-1. [Modo Interactivo](#1-modo-interactivo)
-2. [Envío de Archivos Individuales](#2-envío-de-archivos-individuales)
-3. [Envío de Carpetas Completas](#3-envío-de-carpetas-completas)
-4. [Recepción Manual](#4-recepción-manual)
-5. [Recepción Automática](#5-recepción-automática)
-6. [Casos de Uso por Sede](#6-casos-de-uso-por-sede)
-7. [Pruebas Locales](#7-pruebas-locales)
-8. [Automatización con Scripts](#8-automatización-con-scripts)
+Guía completa paso a paso para transferir archivos de forma segura entre dos equipos usando SFTP/SSH.
 
 ---
 
-## 1. Modo Interactivo
+## 📋 Escenario
 
-### Ejemplo 1.1: Iniciar con menú gráfico
+- **Equipo A (Cliente)**: Windows o Linux - Envía archivos
+- **Equipo B (Servidor)**: Linux - Recibe archivos vía SFTP
+
+---
+
+## 🔧 PASO 1: Configuración Inicial en Ambos Equipos
+
+### En el Equipo Cliente (A)
+
+**Instalar dependencias:**
 
 ```powershell
-python main.py --interactivo
+# En Windows PowerShell
+pip install -r requirements.txt
 ```
 
-**Resultado:**
+```bash
+# En Linux
+pip3 install -r requirements.txt
+```
 
-- Muestra menú principal con opciones
-- Permite seleccionar archivos con diálogo visual
-- Guía paso a paso para envío o recepción
-
-### Ejemplo 1.2: Forma corta
+**Crear estructura de carpetas:**
 
 ```powershell
+# Windows
+New-Item -Path "salida" -ItemType Directory -Force
+New-Item -Path "keys" -ItemType Directory -Force
+```
+
+```bash
+# Linux
+mkdir -p salida keys procesados
+```
+
+---
+
+## 🖥️ PASO 2: Configurar el Servidor Receptor (Equipo B - Linux)
+
+### 2.1 Instalar SSH Server (si no está instalado)
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install openssh-server
+
+# CentOS/RHEL
+sudo yum install openssh-server
+
+# Iniciar servicio SSH
+sudo systemctl start sshd
+sudo systemctl enable sshd
+```
+
+### 2.2 Crear usuario ESICORP
+
+```bash
+# Crear usuario con directorio home
+sudo useradd -m -s /bin/bash esicorp
+sudo passwd esicorp
+
+# Crear directorio de uploads
+sudo mkdir -p /home/esicorp/uploads
+sudo chown esicorp:esicorp /home/esicorp/uploads
+sudo chmod 755 /home/esicorp/uploads
+```
+
+### 2.3 Obtener información del servidor
+
+**Modo Interactivo:**
+
+```bash
+# En el equipo servidor (Linux)
+python3 main.py -i
+
+# Seleccionar opción: 2. 📋 INFORMACIÓN DEL SERVIDOR
+
+# Salida esperada:
+============================================================
+INFORMACIÓN DEL SERVIDOR PARA CONEXIÓN SFTP
+============================================================
+
+📍 Información de Red:
+   • Nombre del Host: servidor-esicorp
+   • Dirección IP Local: 192.168.1.100
+
+🔐 Configuración SFTP:
+   • Puerto SSH: 22 (estándar)
+   • Autenticación: Llave pública RSA
+
+📝 Instrucciones para el Cliente:
+   1. Obtener la llave pública del emisor (id_rsa.pub)
+   2. Agregar al archivo ~/.ssh/authorized_keys en este servidor
+   3. Configurar permisos: chmod 600 ~/.ssh/authorized_keys
+
+💡 Ejemplo de conexión desde el cliente:
+   python main.py --esicorp --sftp-host 192.168.1.100 --sftp-user esicorp
+============================================================
+```
+
+**Modo CLI:**
+
+```bash
+python3 main.py --info
+```
+
+**📝 Anotar esta información:**
+- IP del servidor: `192.168.1.100`
+- Usuario: `esicorp`
+- Puerto: `22`
+
+---
+
+## 📤 PASO 3: Generar Llaves en el Cliente (Equipo A)
+
+### Modo Interactivo
+
+```powershell
+# Windows
+python main.py -i
+
+# Menú:
+# 1. 📤 ENVIAR ARCHIVOS (SFTP)
+# 2. 📋 INFORMACIÓN DEL SERVIDOR
+# 3. 🔑 GESTIÓN DE LLAVES RSA
+# 4. 🚪 SALIR
+
+# Seleccionar: 3
+
+# Menú de gestión:
+# ⚠️  No hay llaves RSA generadas.
+# 
+# 1. 🔑 Generar llaves nuevas
+# 2. 🔙 Volver
+
+# Seleccionar: 1
+
+# Salida:
+🔑 Generando llaves RSA de 4096 bits...
+   (Esto puede tomar unos segundos)
+✅ Llaves generadas exitosamente:
+   Privada: c:\...\keys\id_rsa
+   Pública: c:\...\keys\id_rsa.pub
+
+# Volver al menú y seleccionar opción 3 nuevamente
+# Ahora seleccionar: 1. 👁️  Ver llave pública
+
+============================================================
+LLAVE PÚBLICA RSA:
+============================================================
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... (muy larga)
+============================================================
+
+# COPIAR esta llave completa
+```
+
+### Modo CLI
+
+```powershell
+# Las llaves se generan automáticamente al ejecutar --esicorp
+# por primera vez, o puedes forzar la generación en modo interactivo
+```
+
+---
+
+## 🔑 PASO 4: Configurar Llave Pública en el Servidor (Equipo B)
+
+### En el Servidor Linux
+
+```bash
+# Cambiar al usuario esicorp
+su - esicorp
+
+# Crear directorio .ssh si no existe
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# Agregar la llave pública (reemplazar con la llave copiada del cliente)
+echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC...' >> ~/.ssh/authorized_keys
+
+# Configurar permisos
+chmod 600 ~/.ssh/authorized_keys
+
+# Verificar
+cat ~/.ssh/authorized_keys
+```
+
+---
+
+## 📁 PASO 5: Preparar Archivos para Enviar (Equipo A)
+
+Los archivos deben seguir el patrón: `Area-DD-MM-AAAA.Sede`
+
+**Ejemplos válidos:**
+- `Finanzas-25-12-2025.lima`
+- `Compras-23-02-2023.santiago`
+- `Ventas-10-11-2023.buenosaires`
+
+```powershell
+# Windows - Crear archivo de prueba
+"Datos confidenciales de ESICORP" | Out-File -FilePath "salida\Finanzas-25-12-2025.lima"
+```
+
+```bash
+# Linux
+echo "Datos confidenciales de ESICORP" > salida/Finanzas-25-12-2025.lima
+```
+
+---
+
+## 🚀 PASO 6: Enviar Archivos
+
+### Opción A: Modo Interactivo
+
+```powershell
+# En el equipo cliente
+python main.py -i
+
+# Seleccionar: 1. 📤 ENVIAR ARCHIVOS (SFTP)
+
+# El script mostrará:
+============================================================
+PASO 1: VERIFICACIÓN DE LLAVES RSA
+============================================================
+✅ Llaves RSA encontradas
+
+============================================================
+PASO 2: BÚSQUEDA Y PROCESAMIENTO DE ARCHIVOS
+============================================================
+✅ Encontrados 1 archivo(s):
+   • Finanzas-25-12-2025.lima
+
+📄 Procesando: Finanzas-25-12-2025.lima
+------------------------------------------------------------
+🔍 [INTEGRIDAD] Calculando hash SHA-256...
+   ✅ Hash: e3b0c44298fc1c149afbf4c8996f...
+📝 [CODIFICACIÓN] Convirtiendo a Base64...
+   ✅ Archivo codificado (568 bytes)
+🔐 [CONFIDENCIALIDAD] Cifrando con AES-256-CBC...
+   ✅ Cifrado (576 bytes)
+📦 [EMPAQUETADO] Creando archivo ZIP...
+   ✅ ZIP creado: Finanzas-25-12-2025.zip
+   Tamaño: 1338 bytes
+✅ Procesamiento completado
+============================================================
+
+============================================================
+PASO 3: CONFIGURACIÓN Y ENVÍO SFTP
+============================================================
+
+>> IP del servidor SFTP: 192.168.1.100
+>> Usuario SFTP: esicorp
+>> Puerto SFTP [22]: 
+>> Ruta remota [/home/esicorp/uploads/]: 
+
+🔌 Conectando a esicorp@192.168.1.100:22...
+✅ Conexión SFTP establecida exitosamente
+
+📤 Subiendo: Finanzas-25-12-2025.zip
+   Destino: /home/esicorp/uploads/Finanzas-25-12-2025.zip
+   ✅ Subido exitosamente (1338 bytes)
+
+============================================================
+✅ Resultado: 1/1 archivos enviados
+============================================================
+
+🎉 ¡PROCESO COMPLETADO EXITOSAMENTE!
+```
+
+### Opción B: Modo CLI
+
+```powershell
+# Windows - Envío automático
+python main.py --esicorp --sftp-host 192.168.1.100 --sftp-user esicorp
+
+# Con puerto y ruta personalizados
+python main.py --esicorp `
+    --sftp-host 192.168.1.100 `
+    --sftp-user esicorp `
+    --sftp-port 22 `
+    --sftp-path /home/esicorp/uploads/
+```
+
+```bash
+# Linux - Envío automático
+python3 main.py --esicorp --sftp-host 192.168.1.100 --sftp-user esicorp
+
+# Con configuración completa
+python3 main.py --esicorp \
+    --sftp-host 192.168.1.100 \
+    --sftp-user esicorp \
+    --sftp-port 22 \
+    --sftp-path /home/esicorp/uploads/
+```
+
+---
+
+## ✅ PASO 7: Verificar Recepción en el Servidor (Equipo B)
+
+```bash
+# En el servidor Linux
+ls -lh /home/esicorp/uploads/
+
+# Salida esperada:
+-rw-r--r-- 1 esicorp esicorp 1.3K Dec 25 13:00 Finanzas-25-12-2025.zip
+
+# Verificar contenido del ZIP
+unzip -l /home/esicorp/uploads/Finanzas-25-12-2025.zip
+
+# Salida:
+Archive:  Finanzas-25-12-2025.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+      592  12-25-2025 13:00   Finanzas-25-12-2025.enc
+       89  12-25-2025 13:00   Finanzas-25-12-2025.hash.txt
+      194  12-25-2025 13:00   metadata.txt
+---------                     -------
+      875                     3 files
+```
+
+---
+
+## 🔓 PASO 8 (Opcional): Desencriptar en el Servidor
+
+> **NOTA**: Actualmente, el script NO incluye funcionalidad de desencriptado. Los archivos `.enc` contienen:
+> - Primeros 16 bytes: IV (Vector de inicialización)
+> - Siguientes 32 bytes: Clave AES-256
+> - Resto: Datos cifrados con AES-256-CBC
+
+Para uso en producción, se recomienda:
+1. Transmitir la clave AES por un canal separado
+2. Implementar un script de desencriptado en el servidor
+3. O usar cifrado asimétrico (RSA) para la clave AES
+
+---
+
+## 🔄 Ejemplo Completo: Transferencia entre Dos Oficinas
+
+### Escenario Real
+
+**Oficina Lima (Cliente)** → **Oficina Santiago (Servidor)**
+
+#### En Santiago (Servidor - 192.168.10.50)
+
+```bash
+# 1. Verificar servicio SSH
+sudo systemctl status sshd
+
+# 2. Obtener IP del servidor
+python3 main.py --info
+
+# 3. Crear directorio para recibir
+mkdir -p /home/esicorp/uploads
+chmod 755 /home/esicorp/uploads
+```
+
+#### En Lima (Cliente)
+
+```powershell
+# 1. Colocar archivos en ./salida
+Copy-Item "C:\Documentos\Finanzas-25-12-2025.lima" -Destination ".\salida\"
+
+# 2. Generar llaves (modo interactivo)
+python main.py -i
+# Opción 3 → Opción 1 (Generar llaves)
+# Opción 3 → Opción 1 (Ver llave pública) → COPIAR
+
+# 3. Enviar llave pública a Santiago (por email seguro o USB)
+# Copiar contenido de: keys\id_rsa.pub
+
+# 4. Esperar confirmación de Santiago que agregaron la llave
+```
+
+#### En Santiago (configurar llave)
+
+```bash
+# Recibir llave pública de Lima y agregarla
+echo 'ssh-rsa AAAAB...[llave de Lima]' >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+#### En Lima (enviar archivos)
+
+**Modo Interactivo:**
+```powershell
+python main.py -i
+# Opción 1: ENVIAR ARCHIVOS
+# IP: 192.168.10.50
+# Usuario: esicorp
+# Puerto: 22
+# Ruta: /home/esicorp/uploads/
+```
+
+**Modo CLI:**
+```powershell
+python main.py --esicorp `
+    --sftp-host 192.168.10.50 `
+    --sftp-user esicorp
+```
+
+#### En Santiago (verificar)
+
+```bash
+ls -lh /home/esicorp/uploads/
+# Debe aparecer: Finanzas-25-12-2025.zip
+```
+
+---
+
+## 🛠️ Solución de Problemas
+
+### Error: "AuthenticationFailed"
+
+**Causa**: La llave pública no está configurada correctamente.
+
+**Solución**:
+```bash
+# En el servidor, verificar
+cat ~/.ssh/authorized_keys
+# Debe contener la llave pública del cliente
+
+# Verificar permisos
+ls -la ~/.ssh/
+# Debe mostrar:
+# drwx------ 2 esicorp esicorp 4096 ... .ssh
+# -rw------- 1 esicorp esicorp  xxx ... authorized_keys
+```
+
+### Error: "Connection refused"
+
+**Causa**: SSH no está ejecutándose o firewall bloqueando.
+
+**Solución**:
+```bash
+# Verificar SSH
+sudo systemctl status sshd
+
+# Verificar puerto
+sudo netstat -tlnp | grep :22
+
+# Permitir en firewall (Ubuntu)
+sudo ufw allow 22/tcp
+```
+
+### Error: "No se encontraron archivos"
+
+**Causa**: Archivos no cumplen el patrón `Area-DD-MM-AAAA.Sede`.
+
+**Ejemplos correctos**:
+- ✅ `Finanzas-25-12-2025.lima`
+- ✅ `Ventas-01-01-2024.santiago`
+- ❌ `reporte.txt` (no cumple patrón)
+- ❌ `Ventas-2025.lima` (fecha incompleta)
+
+---
+
+## 📊 Resumen de Comandos Rápidos
+
+### Ver información del servidor
+```bash
+python main.py --info
+```
+
+### Enviar archivos (CLI)
+```bash
+python main.py --esicorp --sftp-host <IP> --sftp-user <usuario>
+```
+
+### Modo interactivo completo
+```bash
 python main.py -i
 ```
 
----
-
-## 2. Envío de Archivos Individuales
-
-### Ejemplo 2.1: Enviar PDF de Compras a Santiago
-
-```powershell
-python main.py --emisor --archivo "C:\ESICORP\Datos\Compras-23-02-2023.santiago" --ip 192.168.1.10 --puerto 5000 --codigo 1234
-```
-
-**¿Qué hace?**
-
-- Comprime el archivo PDF
-- Calcula hash SHA-256
-- Cifra con AES-256-GCM
-- Envía a 192.168.1.10:5000
-- Verifica con código 1234
-
-### Ejemplo 2.2: Enviar archivo de Ventas a Lima (forma corta)
-
-```powershell
-python main.py -e -a "C:\ESICORP\Ventas\Ventas-10-11-2023.lima" -d 10.0.0.5 -c 9876
-```
-
-**Nota:** Puerto 5000 por defecto (no especificado)
-
-### Ejemplo 2.3: Enviar archivo con espacios en el nombre
-
-```powershell
-python main.py -e -a "C:\Datos\Reporte Financiero 2023.xlsx" -d 192.168.1.20 -p 5001 -c 5555
-```
-
-**Importante:** Usar comillas cuando el nombre tiene espacios
-
-### Ejemplo 2.4: Enviar archivo desde ruta larga
-
-```powershell
-python main.py -e -a "C:\Users\Usuario\Documents\ESICORP\Finanzas\Reportes\Q4\Finanzas-12-12-2023.buenosaires" -d 172.16.10.50 -c 7890
+### Verificar recepción
+```bash
+ls -lh /home/esicorp/uploads/
 ```
 
 ---
 
-## 3. Envío de Carpetas Completas
+## 🔐 Checklist de Seguridad
 
-### Ejemplo 3.1: Enviar carpeta de Compras completa
+Antes de usar en producción, verificar:
 
-```powershell
-python main.py -e -a "C:\ESICORP\Compras\2023" -d 192.168.1.10 -c 1234
-```
-
-**¿Qué incluye?**
-
-- Todos los archivos dentro de la carpeta
-- Todas las subcarpetas y su contenido
-- Mantiene la estructura de directorios
-
-### Ejemplo 3.2: Enviar carpeta de Ventas mensual
-
-```powershell
-python main.py -e -a "C:\ESICORP\Ventas\Noviembre" -d 192.168.5.25 -p 5002 -c 4567
-```
-
-### Ejemplo 3.3: Enviar proyecto completo
-
-```powershell
-python main.py -e -a "C:\Proyectos\Migracion_Sistema" -d 10.20.30.40 -c 1111
-```
-
-**El sistema automaticamente:**
-
-1. ✅ Sanitiza nombres de archivos con caracteres especiales
-2. ✅ Comprime toda la estructura en un solo ZIP
-3. ✅ Cifra el paquete completo
-4. ✅ Mantiene permisos y fechas originales
+- [ ] Llaves RSA de 4096 bits generadas
+- [ ] Llave pública agregada a `authorized_keys` en servidor
+- [ ] Permisos correctos en `.ssh` (700) y `authorized_keys` (600)
+- [ ] Firewall configurado para permitir SSH (puerto 22)
+- [ ] Usuario ESICORP tiene permisos en directorio de uploads
+- [ ] Red entre cliente y servidor es segura (VPN recomendada)
+- [ ] Archivos originales se respaldan antes de enviar
+- [ ] Implementar sistema de desencriptado en servidor
 
 ---
 
-## 4. Recepción Manual
-
-### Ejemplo 4.1: Recibir archivo (puerto automático)
-
-```powershell
-python main.py --receptor --codigo 1234
-```
-
-**Salida esperada:**
-
-```
-=== MODO RECEPTOR AUTOMÁTICO ===
-
-Puerto: Asignación automática
-Código: ****
-
-🔊 Servidor activo en: 192.168.1.10:54321
-   Código de Seguridad: 1234
-   
-Esperando conexión...
-```
-
-**Después de recibir:**
-
-- Archivo queda cifrado en `transfers/[SESION]/receiver/`
-- Requiere desencriptado manual posterior
-
-### Ejemplo 4.2: Recibir en puerto específico
-
-```powershell
-python main.py -r -c 9876 -p 5000
-```
-
-**Uso:** Cuando necesitas usar un puerto fijo (firewall, NAT, etc.)
-
----
-
-## 5. Recepción Automática
-
-### Ejemplo 5.1: Recibir y desencriptar automáticamente
-
-```powershell
-python main.py --receptor --codigo 1234 --desencriptar
-```
-
-**Resultado:**
-
-- Recibe el archivo
-- Desencripta automáticamente
-- Verifica integridad SHA-256
-- Descomprime archivos
-- Archivos listos en `transfers/[SESION]/receiver/decrypted_files/`
-
-### Ejemplo 5.2: Forma corta con desencriptado
-
-```powershell
-python main.py -r -c 5555 --desencriptar
-```
-
-### Ejemplo 5.3: Puerto fijo con desencriptado automático
-
-```powershell
-python main.py -r -c 7890 -p 5001 --desencriptar
-```
-
----
-
-## 6. Casos de Uso por Sede
-
-### Caso 6.1: Bogotá → Santiago (Datos de Compras)
-
-**Máquina Receptora (Santiago):**
-
-```powershell
-python main.py -r -c 2023 --desencriptar
-```
-
-**Máquina Emisora (Bogotá):**
-
-```powershell
-python main.py -e -a "C:\ESICORP\Compras\Compras-23-02-2023.santiago" -d 192.168.100.10 -p 54321 -c 2023
-```
-
-### Caso 6.2: Bogotá → Buenos Aires (Reportes de Ventas)
-
-**Máquina Receptora (Buenos Aires):**
-
-```powershell
-python main.py -r -c 8888 -p 5000 --desencriptar
-```
-
-**Máquina Emisora (Bogotá):**
-
-```powershell
-python main.py -e -a "C:\ESICORP\Ventas\Ventas-10-11-2023.buenosaires" -d 10.50.20.30 -p 5000 -c 8888
-```
-
-### Caso 6.3: Bogotá → Lima (Carpeta de Finanzas Mensual)
-
-**Máquina Receptora (Lima):**
-
-```powershell
-python main.py -r -c 4040 --desencriptar
-```
-
-**Máquina Emisora (Bogotá):**
-
-```powershell
-python main.py -e -a "C:\ESICORP\Finanzas\Diciembre2023" -d 172.20.10.100 -p 51234 -c 4040
-```
-
----
-
-## 7. Pruebas Locales
-
-### Ejemplo 7.1: Prueba en misma máquina (localhost)
-
-**Terminal 1 (Receptor):**
-
-```powershell
-python main.py -r -c 9999 --desencriptar
-```
-
-**Terminal 2 (Emisor):**
-
-```powershell
-python main.py -e -a "C:\test\archivo_prueba.txt" -d 127.0.0.1 -p [PUERTO_MOSTRADO] -c 9999
-```
-
-### Ejemplo 7.2: Prueba con carpeta local
-
-**Terminal 1:**
-
-```powershell
-python main.py -r -c 1111
-```
-
-**Terminal 2:**
-
-```powershell
-python main.py -e -a "C:\test\carpeta_prueba" -d 127.0.0.1 -p [PUERTO_MOSTRADO] -c 1111
-```
-
----
-
-## 🆘 Errores Comunes y Soluciones
-
-### Error: "El archivo no existe"
-
-```powershell
-# ❌ Incorrecto (ruta mal escrita)
-python main.py -e -a "C:\Datos\archivo.txt" -d 192.168.1.10 -c 1234
-
-# ✅ Correcto (verificar ruta)
-python main.py -e -a "C:\ESICORP\Datos\archivo.txt" -d 192.168.1.10 -c 1234
-```
-
-### Error: "Puerto inválido"
-
-```powershell
-# ❌ Incorrecto (puerto < 1024)
-python main.py -e -a "archivo.txt" -d 192.168.1.10 -p 80 -c 1234
-
-# ✅ Correcto (puerto válido)
-python main.py -e -a "archivo.txt" -d 192.168.1.10 -p 5000 -c 1234
-```
-
-### Error: "No se pudo establecer conexión"
-
-```powershell
-# Solución: Verificar que el receptor esté escuchando primero
-# Terminal 1: Iniciar receptor
-python main.py -r -c 1234
-
-# Terminal 2: Enviar después de ver "Esperando conexión..."
-python main.py -e -a "archivo.txt" -d 192.168.1.10 -p [PUERTO] -c 1234
-```
+**Última actualización**: Diciembre 2025
+**Versión**: 3.0 (SFTP-Only)

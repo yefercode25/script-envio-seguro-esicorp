@@ -1,40 +1,261 @@
-# Python
+# ============================================================================
+# ESICORP - GitIgnore
+# Excluye información sensible y archivos innecesarios
+# ============================================================================
+
+# ============================================================================
+# ARCHIVOS SENSIBLES (CRÍTICO - NO SUBIR NUNCA)
+# ============================================================================
+
+# Llaves RSA y certificados (INFORMACIÓN MUY SENSIBLE)
+keys/
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+*.ppk
+
+# Archivos de configuración con credenciales
+.env
+.env.local
+.env.production
+config.local.py
+secrets.py
+credentials.json
+
+# ============================================================================
+# DIRECTORIOS DE DATOS Y PROCESAMIENTO
+# ============================================================================
+
+# Archivos procesados (pueden contener información cifrada)
+procesados/
+*.enc
+*.hash.txt
+
+# Archivos de entrada/salida
+salida/
+send/
+transfers/
+uploads/
+downloads/
+
+# Archivos ZIP generados
+*.zip
+
+# ============================================================================
+# PYTHON
+# ============================================================================
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# C extensions
+*.so
+
+# Distribution / packaging
 .Python
-*.egg
-*.egg-info/
-dist/
 build/
-*.whl
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Virtual Environment
-venv/
-env/
-ENV/
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
 .venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
-# IDE
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ============================================================================
+# IDEs y EDITORES
+# ============================================================================
+
+# Visual Studio Code
 .vscode/
+*.code-workspace
+
+# PyCharm
 .idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Eclipse
+.project
+.pydevproject
+.settings/
+
+# ============================================================================
+# SISTEMA OPERATIVO
+# ============================================================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ============================================================================
+# ARCHIVOS TEMPORALES
+# ============================================================================
+
+# Archivos temporales
+*.tmp
+*.temp
+*.bak
 *.swp
 *.swo
 *~
+.#*
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Project Specific
-transfers/*
-!transfers/.gitkeep
-send/
+# Logs
 *.log
+logs/
+*.log.*
 
-# Temporary files
-*.tmp
-temp/
-tmp/
+# Archivos de script temporales
+fix_*.py
+temp_*.py
+test_*.py
+
+# ============================================================================
+# OTROS
+# ============================================================================
+
+# Archivos de base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos comprimidos (excepto releases)
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Documentación generada
+docs/build/
