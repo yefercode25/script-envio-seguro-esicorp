@@ -23,7 +23,7 @@ SFTP_CONFIG = {
     "hostname": "192.168.1.100",  # IP del servidor Linux
     "port": 22,  # Puerto SSH/SFTP
     "username": "esicorp",  # Usuario SFTP
-    "remote_path": "/home/esicorp/uploads/",  # Ruta remota
+    "remote_path": "/home/esicorp/upload/",  # Ruta remota
 }
 
 # Directorios ESICORP

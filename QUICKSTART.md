@@ -98,8 +98,8 @@ sudo systemctl enable sshd
 
 # Crear usuario
 sudo useradd -m -s /bin/bash esicorp
-sudo mkdir -p /home/esicorp/uploads
-sudo chown esicorp:esicorp /home/esicorp/uploads
+sudo mkdir -p /home/esicorp/upload
+sudo chown esicorp:esicorp /home/esicorp/upload
 
 # Agregar llave pública
 su - esicorp
@@ -129,7 +129,7 @@ python main.py -i
 # IP: 192.168.1.100
 # Usuario: esicorp
 # Puerto: 22
-# Ruta: /home/esicorp/uploads/
+# Ruta: /home/esicorp/upload/
 
 # 6. ¡Archivo enviado!
 ```
@@ -137,11 +137,11 @@ python main.py -i
 ### Verificar en Servidor
 
 ```bash
-ls -lh /home/esicorp/uploads/
+ls -lh /home/esicorp/upload/
 # Debería mostrar: Finanzas-25-12-2025.zip
 
 # Ver contenido del ZIP
-unzip -l /home/esicorp/uploads/Finanzas-25-12-2025.zip
+unzip -l /home/esicorp/upload/Finanzas-25-12-2025.zip
 # Contendrá:
 # - Finanzas-25-12-2025.enc (archivo cifrado)
 # - Finanzas-25-12-2025.hash.txt (hash SHA-256)
@@ -163,7 +163,7 @@ python main.py --esicorp \
     --sftp-host 192.168.1.100 \
     --sftp-user esicorp \
     --sftp-port 22 \
-    --sftp-path /home/esicorp/uploads/
+    --sftp-path /home/esicorp/upload/
 ```
 
 ### Mostrar Info del Servidor
