@@ -272,7 +272,7 @@ class ESICORPApp:
     def limpiar_sistema(self):
         """Limpia configuraciones, llaves y archivos procesados."""
         from src import cleanup_utils
-        
+
         print_banner()
         print("LIMPIEZA DE CONFIGURACIONES Y ARCHIVOS")
         print("=" * 60)
@@ -290,23 +290,38 @@ class ESICORPApp:
         print()
         print("4. [<] VOLVER")
         print()
-        
+
         opcion = input("Seleccione opcion [1-4]: ").strip()
-        
+
         if opcion == "1":
             cleanup_utils.limpiar_todo_local()
             input("\nPresione Enter para continuar...")
         elif opcion == "2":
             print()
             print("[INFO] Configuracion del servidor remoto")
-            hostname = input(f"[?] IP del servidor [{config.SFTP_CONFIG['hostname']}]: ").strip() or config.SFTP_CONFIG["hostname"]
-            username = input(f"[?] Usuario [{config.SFTP_CONFIG['username']}]: ").strip() or config.SFTP_CONFIG["username"]
+            hostname = (
+                input(
+                    f"[?] IP del servidor [{config.SFTP_CONFIG['hostname']}]: "
+                ).strip()
+                or config.SFTP_CONFIG["hostname"]
+            )
+            username = (
+                input(f"[?] Usuario [{config.SFTP_CONFIG['username']}]: ").strip()
+                or config.SFTP_CONFIG["username"]
+            )
             port = input(f"[?] Puerto [22]: ").strip() or "22"
             port = int(port) if port.isdigit() else 22
-            remote_path = input(f"[?] Ruta a limpiar [{config.SFTP_CONFIG['remote_path']}]: ").strip() or config.SFTP_CONFIG["remote_path"]
+            remote_path = (
+                input(
+                    f"[?] Ruta a limpiar [{config.SFTP_CONFIG['remote_path']}]: "
+                ).strip()
+                or config.SFTP_CONFIG["remote_path"]
+            )
             print()
             print("[PROC] Conectando al servidor...")
-            sftp_client, ssh_client = self.sftp_mgr.conectar_sftp(hostname=hostname, username=username, port=port)
+            sftp_client, ssh_client = self.sftp_mgr.conectar_sftp(
+                hostname=hostname, username=username, port=port
+            )
             if sftp_client:
                 cleanup_utils.limpiar_directorio_remoto(sftp_client, remote_path)
                 self.sftp_mgr.cerrar_conexion(sftp_client, ssh_client)
@@ -314,27 +329,58 @@ class ESICORPApp:
                 print("[X] No se pudo conectar al servidor")
             input("\nPresione Enter para continuar...")
         elif opcion == "3":
+            # Limpiar todo - ORDEN CORRECTO: Remoto primero, luego local
             print()
-            if input("[!] Limpiar TODO (local + remoto)? (s/N): ").strip().lower() == 's':
-                cleanup_utils.limpiar_todo_local()
+            confirmacion = (
+                input("[!] Limpiar TODO (remoto + local)? (s/N): ").strip().lower()
+            )
+
+            if confirmacion == "s":
+                # PRIMERO: Limpiar remoto (mientras las llaves aún existen)
                 print()
-                print("[INFO] Limpieza remota")
-                hostname = input(f"[?] IP del servidor [{config.SFTP_CONFIG['hostname']}]: ").strip() or config.SFTP_CONFIG["hostname"]
-                username = input(f"[?] Usuario [{config.SFTP_CONFIG['username']}]: ").strip() or config.SFTP_CONFIG["username"]
+                print("[INFO] Paso 1: Limpieza remota")
+                hostname = (
+                    input(
+                        f"[?] IP del servidor [{config.SFTP_CONFIG['hostname']}]: "
+                    ).strip()
+                    or config.SFTP_CONFIG["hostname"]
+                )
+                username = (
+                    input(f"[?] Usuario [{config.SFTP_CONFIG['username']}]: ").strip()
+                    or config.SFTP_CONFIG["username"]
+                )
                 port = int(input(f"[?] Puerto [22]: ").strip() or "22")
-                remote_path = input(f"[?] Ruta a limpiar [{config.SFTP_CONFIG['remote_path']}]: ").strip() or config.SFTP_CONFIG["remote_path"]
+                remote_path = (
+                    input(
+                        f"[?] Ruta a limpiar [{config.SFTP_CONFIG['remote_path']}]: "
+                    ).strip()
+                    or config.SFTP_CONFIG["remote_path"]
+                )
+
                 print()
-                sftp_client, ssh_client = self.sftp_mgr.conectar_sftp(hostname=hostname, username=username, port=port)
+                sftp_client, ssh_client = self.sftp_mgr.conectar_sftp(
+                    hostname=hostname, username=username, port=port
+                )
+
                 if sftp_client:
                     cleanup_utils.limpiar_directorio_remoto(sftp_client, remote_path)
                     self.sftp_mgr.cerrar_conexion(sftp_client, ssh_client)
+                    print()
                 else:
                     print("[X] No se pudo conectar al servidor")
+                    print("[!] Continuando con limpieza local...")
+                    print()
+
+                # SEGUNDO: Limpiar local (ahora que ya no necesitamos las llaves)
+                print("[INFO] Paso 2: Limpieza local")
+                cleanup_utils.limpiar_todo_local()
             else:
                 print("[i] Operacion cancelada")
+
             input("\nPresione Enter para continuar...")
 
         # ==========================================
+
     # VERIFICACIÓN DE SSH
     # ==========================================
     def verificar_ssh(self):
