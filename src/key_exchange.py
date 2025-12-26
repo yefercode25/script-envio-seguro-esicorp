@@ -18,6 +18,10 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
+# Directorio del proyecto (donde está main.py)
+PROJECT_ROOT = Path(__file__).parent.parent
+KEYS_DIR = PROJECT_ROOT / "keys"
+
 
 # ============================================================================
 # CONFIGURACIÓN
@@ -372,6 +376,8 @@ def agregar_a_known_hosts(ip_servidor, llave_publica, info_remota):
 
     except Exception as e:
         return False, f"Error al configurar known_hosts: {e}"
+
+
 # Continuación de src/key_exchange.py
 
 # ============================================================================
@@ -431,18 +437,14 @@ def intercambiar_llaves_servidor(conexion, usuario_local):
         # ========== FASE 2: INTERCAMBIO DE LLAVES PÚBLICAS ==========
         print(f"\n🔄 FASE 2: Intercambio de llaves públicas")
 
-        # Leer nuestra llave pública
-        print(f"   📖 Leyendo llave pública del servidor...")
-        ssh_dir = obtener_ruta_ssh()
-        llave_pub_path = ssh_dir.parent / "keys" / "id_rsa.pub"
+        # Leer nuestra llave pública desde ./keys/
+        print("   📖 Leyendo llave pública del servidor...")
+        llave_pub_path = KEYS_DIR / "id_rsa.pub"
 
         if not llave_pub_path.exists():
-            # Intentar en .ssh también
-            llave_pub_path = ssh_dir / "id_rsa.pub"
-
-        if not llave_pub_path.exists():
-            print(f"   ❌ Error: No se encontró la llave pública")
+            print("   ❌ Error: No se encontró la llave pública")
             print(f"      Buscada en: {llave_pub_path}")
+            print(f"      💡 Genera las llaves primero con Opción 3")
             return False
 
         with open(llave_pub_path, "r") as f:
@@ -674,6 +676,8 @@ def modo_servidor_intercambio(puerto=PUERTO_DEFAULT):
         except:
             pass
         return False
+
+
 # Modo Cliente - Intercambio de Llaves
 # Continuación para src/key_exchange.py
 
@@ -774,17 +778,14 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
         print(f"\n   🔎 Fingerprint de la llave del servidor:")
         print(f"      {fingerprint}")
 
-        # Leer nuestra llave pública
-        print(f"\n   📖 Leyendo llave pública del cliente...")
-        ssh_dir = obtener_ruta_ssh()
-        llave_pub_path = ssh_dir.parent / "keys" / "id_rsa.pub"
+        # Leer nuestra llave pública desde ./keys/
+        print("   📖 Leyendo llave pública del cliente...")
+        llave_pub_path = KEYS_DIR / "id_rsa.pub"
 
         if not llave_pub_path.exists():
-            llave_pub_path = ssh_dir / "id_rsa.pub"
-
-        if not llave_pub_path.exists():
-            print(f"   ❌ Error: No se encontró la llave pública")
+            print("   ❌ Error: No se encontró la llave pública")
             print(f"      Buscada en: {llave_pub_path}")
+            print(f"      💡 Genera las llaves primero con Opción 3")
             return False
 
         with open(llave_pub_path, "r") as f:
