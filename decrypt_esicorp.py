@@ -15,19 +15,19 @@ from cryptography.hazmat.backends import default_backend
 
 def descifrar_archivo(archivo_enc, archivo_salida):
     """
-    Descifra un archivo .enc y lo devuelve a su estado original
+     Descifra un archivo .enc y lo devuelve a su estado original
 
-    Formato del archivo .enc:
-    [IV 16 bytes][Clave 32 bytes][Datos cifrados]
+     Formato del archivo .enc:
+     [IV 16 bytes][Clave 32 bytes][Datos cifrados]
 
     Los datos cifrados contienen el archivo original codificado en Base64
 
-    Args:
-        archivo_enc: Archivo cifrado (.enc)
-        archivo_salida: Nombre del archivo original a crear
+     Args:
+         archivo_enc: Archivo cifrado (.enc)
+         archivo_salida: Nombre del archivo original a crear
 
-    Returns:
-        bool: True si el descifrado fue exitoso
+     Returns:
+         bool: True si el descifrado fue exitoso
     """
     try:
         print(f"[PROC] Descifrando: {archivo_enc}")
@@ -176,10 +176,30 @@ def procesar_directorio(directorio):
 
     exitos = 0
     for archivo_enc in archivos_enc:
-        # Determinar nombre del archivo original (quitar .enc)
+        # Determinar nombre del archivo original
         nombre_base = archivo_enc.stem
-        archivo_salida = directorio / nombre_base
         archivo_hash = directorio / f"{nombre_base}.hash.txt"
+
+        # Obtener nombre original con extensión desde hash.txt
+        nombre_original = None
+        if archivo_hash.exists():
+            try:
+                with open(archivo_hash, "r") as f:
+                    contenido = f.read()
+                for linea in contenido.split("\n"):
+                    if linea.startswith("Archivo:"):
+                        nombre_original = linea.split(":", 1)[1].strip()
+                        break
+            except:
+                pass
+
+        # Si se pudo obtener el nombre original, usarlo
+        if nombre_original:
+            archivo_salida = directorio / nombre_original
+            print(f"[INFO] Nombre original: {nombre_original}")
+        else:
+            archivo_salida = directorio / nombre_base
+            print(f"[!] No se pudo determinar nombre original, usando: {nombre_base}")
 
         # Descifrar
         if descifrar_archivo(archivo_enc, archivo_salida):
