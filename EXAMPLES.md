@@ -67,9 +67,9 @@ sudo useradd -m -s /bin/bash esicorp
 sudo passwd esicorp
 
 # Crear directorio de uploads
-sudo mkdir -p /home/esicorp/upload
-sudo chown esicorp:esicorp /home/esicorp/upload
-sudo chmod 755 /home/esicorp/upload
+sudo mkdir -p /home/grupo1/upload
+sudo chown esicorp:esicorp /home/grupo1/upload
+sudo chmod 755 /home/grupo1/upload
 ```
 
 ### 2.3 Obtener información del servidor
@@ -258,13 +258,13 @@ PASO 3: CONFIGURACIÓN Y ENVÍO SFTP
 >> IP del servidor SFTP: 192.168.1.100
 >> Usuario SFTP: esicorp
 >> Puerto SFTP [22]: 
->> Ruta remota [/home/esicorp/upload/]: 
+>> Ruta remota [/home/grupo1/upload/]: 
 
 🔌 Conectando a esicorp@192.168.1.100:22...
 ✅ Conexión SFTP establecida exitosamente
 
 📤 Subiendo: Finanzas-25-12-2025.zip
-   Destino: /home/esicorp/upload/Finanzas-25-12-2025.zip
+   Destino: /home/grupo1/upload/Finanzas-25-12-2025.zip
    ✅ Subido exitosamente (1338 bytes)
 
 ============================================================
@@ -285,7 +285,7 @@ python main.py --esicorp `
     --sftp-host 192.168.1.100 `
     --sftp-user esicorp `
     --sftp-port 22 `
-    --sftp-path /home/esicorp/upload/
+    --sftp-path /home/grupo1/upload/
 ```
 
 ```bash
@@ -297,7 +297,7 @@ python3 main.py --esicorp \
     --sftp-host 192.168.1.100 \
     --sftp-user esicorp \
     --sftp-port 22 \
-    --sftp-path /home/esicorp/upload/
+    --sftp-path /home/grupo1/upload/
 ```
 
 ---
@@ -306,13 +306,13 @@ python3 main.py --esicorp \
 
 ```bash
 # En el servidor Linux
-ls -lh /home/esicorp/upload/
+ls -lh /home/grupo1/upload/
 
 # Salida esperada:
 -rw-r--r-- 1 esicorp esicorp 1.3K Dec 25 13:00 Finanzas-25-12-2025.zip
 
 # Verificar contenido del ZIP
-unzip -l /home/esicorp/upload/Finanzas-25-12-2025.zip
+unzip -l /home/grupo1/upload/Finanzas-25-12-2025.zip
 
 # Salida:
 Archive:  Finanzas-25-12-2025.zip
@@ -357,8 +357,8 @@ sudo systemctl status sshd
 python3 main.py --info
 
 # 3. Crear directorio para recibir
-mkdir -p /home/esicorp/upload
-chmod 755 /home/esicorp/upload
+mkdir -p /home/grupo1/upload
+chmod 755 /home/grupo1/upload
 ```
 
 #### En Lima (Cliente)
@@ -395,7 +395,7 @@ python main.py -i
 # IP: 192.168.10.50
 # Usuario: esicorp
 # Puerto: 22
-# Ruta: /home/esicorp/upload/
+# Ruta: /home/grupo1/upload/
 ```
 
 **Modo CLI:**
@@ -408,7 +408,7 @@ python main.py --esicorp `
 #### En Santiago (verificar)
 
 ```bash
-ls -lh /home/esicorp/upload/
+ls -lh /home/grupo1/upload/
 # Debe aparecer: Finanzas-25-12-2025.zip
 ```
 
@@ -480,7 +480,7 @@ python main.py -i
 
 ### Verificar recepción
 ```bash
-ls -lh /home/esicorp/upload/
+ls -lh /home/grupo1/upload/
 ```
 
 ---
