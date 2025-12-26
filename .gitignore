@@ -37,7 +37,15 @@ procesados/
 *.hash.txt
 
 # Archivos de entrada/salida
-salida/
+# Permitir archivos de ejemplo con patrón ESICORP pero ignorar procesados
+salida/*.enc
+salida/*.hash.txt
+salida/*_encrypted*
+salida/*_processed*
+salida/*.zip
+# Permitir archivos que coincidan con el patrón ESICORP para ejemplos
+!salida/*-[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9].*
+!salida/.gitkeep
 send/
 transfers/
 uploads/

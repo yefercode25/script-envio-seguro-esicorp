@@ -1,0 +1,6 @@
+# Directorio de salida para archivos a procesar
+
+Este directorio contiene archivos de ejemplo para demostrar el sistema ESICORP.
+
+Los archivos `ejemplo*.txt` están versionados en git para facilitar pruebas.
+Los archivos procesados (*.enc, *.hash.txt, etc.) son ignorados automáticamente.

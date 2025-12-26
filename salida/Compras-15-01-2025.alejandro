@@ -1,0 +1,14 @@
+Documento de prueba para el sistema ESICORP
+Archivo de compras del mes de Enero 2025
+
+DETALLES DE LA COMPRA:
+- Producto: Material de oficina
+- Cantidad: 150 unidades
+- Proveedor: Distribuidora Nacional
+- Fecha: 15-01-2025
+- Total: $1,250,000 COP
+
+Este archivo será procesado con:
+✓ Hash SHA-256 para integridad
+✓ Cifrado AES-256-CBC
+✓ Transferencia SFTP segura
