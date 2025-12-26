@@ -2,10 +2,9 @@
 Script de desencriptacion ESICORP para ejecutar en el servidor Linux
 
 Este script se ejecuta en el servidor después de recibir y extraer los archivos.
-Realiza el proceso inverso: Base64 decode -> AES decrypt -> verify hash -> archivo original
+Realiza el proceso inverso: Lee .enc binario -> AES decrypt -> Base64 decode -> archivo original
 """
 
-import os
 import sys
 import base64
 import hashlib
@@ -18,6 +17,11 @@ def descifrar_archivo(archivo_enc, archivo_salida):
     """
     Descifra un archivo .enc y lo devuelve a su estado original
 
+    Formato del archivo .enc:
+    [IV 16 bytes][Clave 32 bytes][Datos cifrados]
+
+    Los datos cifrados contienen el archivo original codificado en Base64
+
     Args:
         archivo_enc: Archivo cifrado (.enc)
         archivo_salida: Nombre del archivo original a crear
@@ -28,21 +32,30 @@ def descifrar_archivo(archivo_enc, archivo_salida):
     try:
         print(f"[PROC] Descifrando: {archivo_enc}")
 
-        # Leer archivo cifrado (Base64)
+        # Leer archivo cifrado (formato binario)
         with open(archivo_enc, "rb") as f:
-            datos_base64 = f.read()
+            datos_completos = f.read()
 
-        # Decodificar Base64
-        print("  [>>] Decodificando Base64...")
-        datos_cifrados = base64.b64decode(datos_base64)
+        print(f"  [>>] Leyendo estructura del archivo cifrado...")
+        print(f"      Tamaño total: {len(datos_completos)} bytes")
 
-        # Extraer IV (primeros 16 bytes)
-        iv = datos_cifrados[:16]
-        datos_cifrados = datos_cifrados[16:]
+        # Extraer componentes según formato: [IV 16][Clave 32][Datos cifrados]
+        iv = datos_completos[:16]
+        clave = datos_completos[16:48]  # 16 + 32 = 48
+        datos_cifrados = datos_completos[48:]
 
-        # Extraer clave (últimos 32 bytes)
-        clave = datos_cifrados[-32:]
-        datos_cifrados = datos_cifrados[:-32]
+        print(f"      IV: {len(iv)} bytes")
+        print(f"      Clave: {len(clave)} bytes")
+        print(f"      Datos cifrados: {len(datos_cifrados)} bytes")
+
+        # Validar
+        if len(iv) != 16:
+            print(f"  [X] Error: IV debe ser 16 bytes, encontrado {len(iv)}")
+            return False
+
+        if len(clave) != 32:
+            print(f"  [X] Error: Clave debe ser 32 bytes, encontrado {len(clave)}")
+            return False
 
         print(f"  [>>] Descifrando AES-256-CBC...")
 
@@ -53,7 +66,16 @@ def descifrar_archivo(archivo_enc, archivo_salida):
 
         # Remover padding PKCS7
         padding_length = datos_descifrados[-1]
-        datos_originales = datos_descifrados[:-padding_length]
+        datos_base64 = datos_descifrados[:-padding_length]
+
+        print(f"  [>>] Decodificando Base64...")
+
+        # Decodificar Base64 para obtener archivo original
+        try:
+            datos_originales = base64.b64decode(datos_base64)
+        except Exception as e:
+            print(f"  [X] Error al decodificar Base64: {e}")
+            return False
 
         # Guardar archivo original
         with open(archivo_salida, "wb") as f:
@@ -66,6 +88,9 @@ def descifrar_archivo(archivo_enc, archivo_salida):
 
     except Exception as e:
         print(f"  [X] Error al descifrar: {e}")
+        import traceback
+
+        traceback.print_exc()
         return False
 
 
@@ -85,7 +110,18 @@ def verificar_hash(archivo, archivo_hash):
 
         # Leer hash esperado
         with open(archivo_hash, "r") as f:
-            hash_esperado = f.read().strip()
+            contenido = f.read()
+
+        # Extraer hash (formato: "SHA-256: <hash>")
+        hash_esperado = None
+        for linea in contenido.split("\n"):
+            if linea.startswith("SHA-256:"):
+                hash_esperado = linea.split(":", 1)[1].strip()
+                break
+
+        if not hash_esperado:
+            print(f"  [!] No se pudo extraer hash del archivo")
+            return False
 
         # Calcular hash del archivo
         sha256 = hashlib.sha256()
@@ -100,7 +136,7 @@ def verificar_hash(archivo, archivo_hash):
             return True
         else:
             print(f"  [X] Hash NO coincide!")
-            print(f"      Esperado: {hash_esperado}")
+            print(f"      Esperado:  {hash_esperado}")
             print(f"      Calculado: {hash_calculado}")
             return False
 
