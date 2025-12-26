@@ -251,8 +251,9 @@ class SFTPManager:
                 remote_dir = remote_path.rsplit("/", 1)[0]
                 zip_filename = remote_path.rsplit("/", 1)[1]
                 extract_dir = zip_filename.replace(".zip", "")
+                full_extract_path = f"{remote_dir}/{extract_dir}"
 
-                print(f"[INFO] Directorio de extraccion: {remote_dir}/{extract_dir}/")
+                print(f"[INFO] Directorio de extraccion: {full_extract_path}/")
                 print()
 
                 # Ejecutar comando unzip en el servidor
@@ -269,8 +270,84 @@ class SFTPManager:
 
                 if exit_status == 0:
                     print("[OK] Extraccion completada exitosamente")
-                    print(f"[OK] Archivos extraidos en: {remote_dir}/{extract_dir}/")
+                    print(f"[OK] Archivos extraidos en: {full_extract_path}/")
                     print(f"[OK] Archivo ZIP original conservado: {remote_path}")
+
+                    # NUEVO: Desencriptacion automatica
+                    print()
+                    print("[>>] Iniciando desencriptacion automatica...")
+
+                    # Copiar script de desencriptacion al servidor
+                    script_local = Path("decrypt_esicorp.py")
+                    script_remoto = f"{remote_dir}/decrypt_esicorp.py"
+
+                    if script_local.exists():
+                        print(
+                            f"[PROC] Copiando script de desencriptacion al servidor..."
+                        )
+                        try:
+                            sftp_client.put(str(script_local), script_remoto)
+                            print(f"[OK] Script copiado: {script_remoto}")
+
+                            # Ejecutar script de desencriptacion
+                            ssh_client.close()  # Cerrar sesion anterior
+                            ssh_client = (
+                                sftp_client.get_channel().get_transport().open_session()
+                            )
+
+                            decrypt_cmd = f"cd {remote_dir} && python3 decrypt_esicorp.py {extract_dir}"
+                            print(f"[PROC] Ejecutando desencriptacion...")
+                            print(f"[CMD] {decrypt_cmd}")
+                            print()
+
+                            ssh_client.exec_command(decrypt_cmd)
+
+                            # Leer output del script
+                            import time
+
+                            time.sleep(1)  # Esperar a que termine
+
+                            # Obtener output
+                            stdout = ssh_client.makefile("r")
+                            stderr = ssh_client.makefile_stderr("r")
+
+                            output = stdout.read().decode("utf-8")
+                            errors = stderr.read().decode("utf-8")
+
+                            if output:
+                                print(output)
+
+                            exit_status = ssh_client.recv_exit_status()
+
+                            if exit_status == 0:
+                                print("[OK] Desencriptacion completada exitosamente")
+                                print(
+                                    f"[OK] Archivos originales restaurados en: {full_extract_path}/"
+                                )
+                            else:
+                                print(
+                                    f"[!] Advertencia: Desencriptacion retorno codigo {exit_status}"
+                                )
+                                if errors:
+                                    print(f"[!] Errores: {errors}")
+                                print(
+                                    f"[TIP] Verifica que Python 3 y cryptography esten instalados"
+                                )
+                                print(
+                                    f"[TIP] Instalar: sudo apt-get install python3-pip && pip3 install cryptography"
+                                )
+
+                        except Exception as e:
+                            print(f"[!] Error al desencriptar: {e}")
+                            print(
+                                f"[INFO] Los archivos cifrados estan disponibles en: {full_extract_path}/"
+                            )
+                    else:
+                        print(f"[!] Script decrypt_esicorp.py no encontrado localmente")
+                        print(
+                            f"[INFO] Los archivos cifrados estan disponibles en: {full_extract_path}/"
+                        )
+
                 else:
                     print(
                         f"[!] Advertencia: El comando de extraccion retorno codigo {exit_status}"
