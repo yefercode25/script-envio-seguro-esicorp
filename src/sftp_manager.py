@@ -197,14 +197,15 @@ class SFTPManager:
             print(f"   Verifique que {hostname}:{port} sea accesible")
             return None, None
 
-    def subir_archivo(self, sftp_client, local_path, remote_path):
+    def subir_archivo(self, sftp_client, local_path, remote_path, extraer=True):
         """
-        Sube un archivo al servidor SFTP.
+        Sube un archivo al servidor SFTP con output muy descriptivo.
 
         Args:
             sftp_client: Cliente SFTP conectado
             local_path (str/Path): Ruta local del archivo
             remote_path (str): Ruta remota de destino
+            extraer (bool): Si True, extrae el ZIP en el servidor
 
         Returns:
             bool: True si la subida fue exitosa
@@ -212,22 +213,77 @@ class SFTPManager:
         try:
             local_path = Path(local_path)
 
-            print(f"[UP] Subiendo: {local_path.name}")
-            print(f"   Destino: {remote_path}")
+            print("\n" + "=" * 60)
+            print(f"[>>] Iniciando transferencia de archivo")
+            print("=" * 60)
+            print(f"[INFO] Archivo local: {local_path.name}")
+            print(f"[INFO] Tamano: {local_path.stat().st_size:,} bytes")
+            print(f"[INFO] Destino remoto: {remote_path}")
+            print()
 
             # Transferir archivo
+            print("[PROC] Iniciando transferencia SFTP...")
             sftp_client.put(str(local_path), remote_path)
+            print("[OK] Archivo transferido exitosamente")
+            print()
 
             # Verificar tamaño
+            print("[CHK] Verificando integridad del archivo...")
             remote_size = sftp_client.stat(remote_path).st_size
             local_size = local_path.stat().st_size
 
             if remote_size == local_size:
-                print(f"   [OK] Subido exitosamente ({local_size} bytes)")
-                return True
+                print(f"[OK] Verificacion exitosa: {local_size:,} bytes")
+                print(f"[OK] Archivo remoto y local coinciden")
             else:
-                print(f"   [!]  Advertencia: Tamaño difiere")
+                print(f"[!] Advertencia: Tamano difiere")
+                print(f"    Local: {local_size:,} bytes")
+                print(f"    Remoto: {remote_size:,} bytes")
                 return False
+
+            # Extraer ZIP si se solicita
+            if extraer and local_path.suffix == ".zip":
+                print()
+                print("[>>] Iniciando extraccion en servidor...")
+                print(f"[INFO] Archivo ZIP: {remote_path}")
+
+                # Obtener directorio de destino
+                remote_dir = remote_path.rsplit("/", 1)[0]
+                zip_filename = remote_path.rsplit("/", 1)[1]
+                extract_dir = zip_filename.replace(".zip", "")
+
+                print(f"[INFO] Directorio de extraccion: {remote_dir}/{extract_dir}/")
+                print()
+
+                # Ejecutar comando unzip en el servidor
+                ssh_client = sftp_client.get_channel().get_transport().open_session()
+
+                # Comando: cd al directorio, crear carpeta, extraer
+                cmd = f"cd {remote_dir} && mkdir -p {extract_dir} && unzip -o {zip_filename} -d {extract_dir}"
+                print(f"[PROC] Ejecutando comando de extraccion...")
+                print(f"[CMD] {cmd}")
+                print()
+
+                ssh_client.exec_command(cmd)
+                exit_status = ssh_client.recv_exit_status()
+
+                if exit_status == 0:
+                    print("[OK] Extraccion completada exitosamente")
+                    print(f"[OK] Archivos extraidos en: {remote_dir}/{extract_dir}/")
+                    print(f"[OK] Archivo ZIP original conservado: {remote_path}")
+                else:
+                    print(
+                        f"[!] Advertencia: El comando de extraccion retorno codigo {exit_status}"
+                    )
+                    print(f"[TIP] Verifica que 'unzip' este instalado en el servidor")
+                    print(
+                        f"[TIP] Instalar con: sudo apt-get install unzip (Debian/Ubuntu)"
+                    )
+
+                ssh_client.close()
+
+            print("=" * 60)
+            return True
 
         except PermissionError as e:
             print(f"   [X] ERROR: Permiso denegado")

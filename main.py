@@ -86,22 +86,40 @@ class ESICORPApp:
             input("\nPresione Enter para continuar...")
             return
 
-        # PASO 3: Configurar conexión SFTP
+        # PASO 3: Configuración y envío SFTP
         print("\n" + "=" * 60)
-        print("PASO 3: CONFIGURACIÓN Y ENVÍO SFTP")
+        print("PASO 3: CONFIGURACION Y ENVIO SFTP")
         print("=" * 60)
+        print()
+        print("[INFO] Configuracion del servidor de destino")
+        print("[TIP] Ingrese los datos del servidor SFTP remoto")
+        print("[TIP] Presione Enter para usar valores por defecto")
+        print()
 
         hostname = (
-            input("\n>> IP del servidor SFTP: ").strip()
+            input(
+                f"[?] IP del servidor SFTP [{config.SFTP_CONFIG['hostname']}]: "
+            ).strip()
             or config.SFTP_CONFIG["hostname"]
         )
-        username = input(">> Usuario SFTP: ").strip() or config.SFTP_CONFIG["username"]
-        port = input(">> Puerto SFTP [22]: ").strip()
+        username = (
+            input(f"[?] Usuario SFTP [{config.SFTP_CONFIG['username']}]: ").strip()
+            or config.SFTP_CONFIG["username"]
+        )
+        port = input(
+            f"[?] Puerto SFTP [{config.SFTP_CONFIG['port']}]: "
+        ).strip() or str(config.SFTP_CONFIG["port"])
         port = int(port) if port.isdigit() else 22
         remote_path = (
-            input(">> Ruta remota [/home/esicorp/uploads/]: ").strip()
+            input(f"[?] Ruta remota [{config.SFTP_CONFIG['remote_path']}]: ").strip()
             or config.SFTP_CONFIG["remote_path"]
         )
+
+        print()
+        print("[INFO] Configuracion establecida:")
+        print(f"       Servidor: {username}@{hostname}:{port}")
+        print(f"       Destino: {remote_path}")
+        print()
 
         # Conectar SFTP
         sftp_client, ssh_client = self.sftp_mgr.conectar_sftp(
