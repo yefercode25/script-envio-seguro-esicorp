@@ -34,11 +34,11 @@ def print_action(message):
 
 
 def print_crypto(message):
-    print(f"      🔐 {message}")
+    print(f"      [SEC] {message}")
 
 
 def print_network(message):
-    print(f"      📡 {message}")
+    print(f"      [SEND] {message}")
 
 
 def print_file(message):
@@ -46,17 +46,17 @@ def print_file(message):
 
 
 def print_success(message):
-    print(f"   ✅ {message}")
+    print(f"   [OK] {message}")
 
 
 def print_error(message):
-    print(f"   ❌ {message}")
+    print(f"   [X] {message}")
 
 
 def print_info(message):
-    print(f"   ℹ️  {message}")
+    print(f"   [i]  {message}")
 
 
 # Mantenemos print_detail por compatibilidad pero lo redirigimos a un formato más limpio
 def print_detail(message):
-    print(f"      ⚙️  {message}")
+    print(f"      [CFG]  {message}")

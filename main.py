@@ -31,7 +31,7 @@ class ESICORPApp:
         print("=" * 60)
 
         if not self.sftp_mgr.verificar_llaves():
-            print("⚠️  No se encontraron llaves RSA.")
+            print("[!]  No se encontraron llaves RSA.")
             generar = input(
                 "¿Desea generar nuevas llaves de 4096 bits? (s/n): "
             ).lower()
@@ -53,14 +53,14 @@ class ESICORPApp:
                 input("\nPresione Enter para continuar...")
                 return
         else:
-            print("✅ Llaves RSA encontradas\n")
+            print("[OK] Llaves RSA encontradas\n")
 
         # PASO 2: Seleccionar archivos a procesar
         print("\n" + "=" * 60)
         print("PASO 2: SELECCIÓN DE ARCHIVOS")
         print("=" * 60)
         print("\n1. 📂 Usar archivos de ./salida (patrón ESICORP)")
-        print("2. 📝 Seleccionar archivo/carpeta manualmente")
+        print("2. [EDIT] Seleccionar archivo/carpeta manualmente")
 
         opcion = input("\nOpción [1-2]: ").strip()
 
@@ -128,12 +128,12 @@ class ESICORPApp:
 
             print("\n" + "=" * 60)
             print(
-                f"✅ Resultado: {exitosos}/{len(archivos_procesados)} archivos enviados"
+                f"[OK] Resultado: {exitosos}/{len(archivos_procesados)} archivos enviados"
             )
             print("=" * 60)
 
             if exitosos == len(archivos_procesados):
-                print("\n🎉 ¡PROCESO COMPLETADO EXITOSAMENTE!")
+                print("\n[***] ¡PROCESO COMPLETADO EXITOSAMENTE!")
 
         finally:
             self.sftp_mgr.cerrar_conexion(sftp_client, ssh_client)
@@ -162,12 +162,12 @@ class ESICORPApp:
             print("=== GESTIÓN DE LLAVES RSA ===\n")
 
             if self.sftp_mgr.verificar_llaves():
-                print("✅ Llaves RSA existentes:")
+                print("[OK] Llaves RSA existentes:")
                 print(f"   Privada: {self.sftp_mgr.private_key_path}")
                 print(f"   Pública: {self.sftp_mgr.public_key_path}\n")
                 print("1. 👁️  Ver llave pública")
-                print("2. 🔄 Regenerar llaves")
-                print("3. 🔙 Volver")
+                print("2. [PROC] Regenerar llaves")
+                print("3. [<] Volver")
                 opcion = input("\nOpción [1-3]: ").strip()
 
                 if opcion == "1":
@@ -191,9 +191,9 @@ class ESICORPApp:
                 elif opcion == "3":
                     break
             else:
-                print("⚠️  No hay llaves RSA generadas.\n")
-                print("1. 🔑 Generar llaves nuevas")
-                print("2. 🔙 Volver")
+                print("[!]  No hay llaves RSA generadas.\n")
+                print("1. [KEY] Generar llaves nuevas")
+                print("2. [<] Volver")
                 opcion = input("\nOpción [1-2]: ").strip()
 
                 if opcion == "1":
@@ -209,28 +209,38 @@ class ESICORPApp:
         """Ejecuta el menú principal de la aplicación."""
         while True:
             print_banner()
-            print("1. 📤 ENVIAR ARCHIVOS (SFTP)")
-            print("2. 📋 INFORMACIÓN DEL SERVIDOR")
-            print("3. 🔑 GESTIÓN DE LLAVES RSA")
-            print("4. 🔧 VERIFICAR/CONFIGURAR SSH")
-            print("5. 🔐 INTERCAMBIO AUTOMÁTICO DE LLAVES")
-            print("6. 🚪 SALIR")
-            print("\n")
+            print("1. [TOOL] VERIFICAR/CONFIGURAR SSH")
+            print("   Verificar estado del servicio SSH y configurar si es necesario")
+            print()
+            print("2. [SEC] INTERCAMBIO AUTOMATICO DE LLAVES")
+            print("   Intercambiar llaves RSA entre cliente y servidor via sockets")
+            print()
+            print("3. [KEY] GESTION DE LLAVES RSA")
+            print("   Ver, generar o regenerar llaves RSA de 4096 bits")
+            print()
+            print("4. [INFO] INFORMACION DEL SERVIDOR")
+            print("   Ver IP, hostname, usuario y estado del servicio SSH")
+            print()
+            print("5. [UP] ENVIAR ARCHIVOS (SFTP)")
+            print("   Procesar y enviar archivos via SFTP con cifrado AES-256")
+            print()
+            print("6. [EXIT] SALIR")
+            print()
 
-            option = input("Seleccione opción [1-6]: ").strip()
+            option = input("Seleccione opcion [1-6]: ").strip()
 
             if option == "1":
-                self.enviar_archivos()
+                self.verificar_ssh()
             elif option == "2":
-                self.mostrar_info()
+                self.intercambio_llaves()
             elif option == "3":
                 self.gestionar_llaves()
             elif option == "4":
-                self.verificar_ssh()
+                self.mostrar_info()
             elif option == "5":
-                self.intercambio_llaves()
+                self.enviar_archivos()
             elif option == "6":
-                print("\n👋 ¡Hasta luego!")
+                print("\n[BYE] Hasta luego!")
                 break
 
     # ==========================================
@@ -253,11 +263,11 @@ class ESICORPApp:
 
         while True:
             print_banner()
-            print("🔐 INTERCAMBIO AUTOMÁTICO DE LLAVES RSA")
+            print("[SEC] INTERCAMBIO AUTOMÁTICO DE LLAVES RSA")
             print("=" * 60)
-            print("\n1. 🖥️  MODO SERVIDOR (Escuchar conexiones)")
-            print("2. 💻 MODO CLIENTE (Conectar a servidor)")
-            print("3. 🔙 VOLVER")
+            print("\n1. [SRV]  MODO SERVIDOR (Escuchar conexiones)")
+            print("2. [CLI] MODO CLIENTE (Conectar a servidor)")
+            print("3. [<] VOLVER")
             print("\n")
 
             opcion = input("Seleccione opción [1-3]: ").strip()
@@ -277,7 +287,7 @@ class ESICORPApp:
             elif opcion == "3":
                 break
             else:
-                print("\n⚠️  Opción inválida")
+                print("\n[!]  Opción inválida")
                 input("\nPresione Enter para continuar...")
 
 
@@ -302,7 +312,7 @@ if __name__ == "__main__":
 
             # Verificar/generar llaves
             if not app.sftp_mgr.verificar_llaves():
-                print("⚠️  Generando llaves RSA...")
+                print("[!]  Generando llaves RSA...")
                 priv, pub = app.sftp_mgr.generar_llaves()
                 if not priv:
                     print_error("No se pudieron generar las llaves.")
@@ -337,7 +347,7 @@ if __name__ == "__main__":
                         exitosos += 1
 
                 if exitosos == len(archivos_procesados):
-                    print("\n🎉 ¡PROCESO COMPLETADO EXITOSAMENTE!")
+                    print("\n[***] ¡PROCESO COMPLETADO EXITOSAMENTE!")
                     sys.exit(0)
                 else:
                     sys.exit(1)
@@ -351,7 +361,7 @@ if __name__ == "__main__":
             sys.exit(0)
 
     except KeyboardInterrupt:
-        print("\n\n⚠️  Interrumpido por el usuario")
+        print("\n\n[!]  Interrumpido por el usuario")
         sys.exit(0)
     except Exception as e:
         print_error(f"Error fatal: {e}")

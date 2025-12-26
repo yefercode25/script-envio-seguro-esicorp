@@ -39,33 +39,33 @@ def mostrar_info_completa():
     print(f"   • Nombre del Host: {hostname}")
     print(f"   • Dirección IP Local: {ip_local}")
     print(f"   • Usuario del Sistema: {username}")
-    print("\n🔐 Configuración SFTP:")
+    print("\n[SEC] Configuración SFTP:")
     print("   • Puerto SSH: 22 (estándar)")
     print("   • Autenticación: Llave pública RSA")
-    print("\n📝 Instrucciones para el Cliente:")
+    print("\n[EDIT] Instrucciones para el Cliente:")
     print("   1. Obtener la llave pública del emisor (id_rsa.pub)")
     print(f"   2. Conectarse a este servidor como: {username}@{ip_local}")
     print("   3. Agregar llave pública a ~/.ssh/authorized_keys")
     print("   4. Configurar permisos: chmod 600 ~/.ssh/authorized_keys")
-    print("\n💡 Ejemplo de conexión desde el cliente:")
+    print("\n[TIP] Ejemplo de conexión desde el cliente:")
     print(f"   python main.py --esicorp --sftp-host {ip_local} --sftp-user {username}")
-    print("\n🔑 Comando de prueba SSH:")
+    print("\n[KEY] Comando de prueba SSH:")
     print(f"   ssh {username}@{ip_local}")
 
     # Estado de SSH
     print("\n" + "=" * 60)
     print("ESTADO DEL SERVICIO SSH")
     print("=" * 60)
-    print(f"\n🖥️  Sistema: {sistema.upper()}")
-    print(f"🔌 Puerto 22: {'✅ ABIERTO' if puerto_abierto else '❌ CERRADO'}")
-    print(f"📊 Estado: {mensaje_ssh}")
+    print(f"\n[SRV]  Sistema: {sistema.upper()}")
+    print(f"🔌 Puerto 22: {'[OK] ABIERTO' if puerto_abierto else '[X] CERRADO'}")
+    print(f"[STAT] Estado: {mensaje_ssh}")
 
     if instalado and corriendo:
-        print("\n✅ SSH está listo para recibir conexiones")
+        print("\n[OK] SSH está listo para recibir conexiones")
     elif instalado and not corriendo:
-        print("\n⚠️  SSH está instalado pero no está corriendo")
+        print("\n[!]  SSH está instalado pero no está corriendo")
     else:
-        print("\n❌ SSH no está configurado en este sistema")
+        print("\n[X] SSH no está configurado en este sistema")
 
     print("=" * 60)
 

@@ -142,7 +142,7 @@ def configurar_ssh_windows():
     Returns:
         tuple: (exito, mensaje)
     """
-    print("\n🔧 Intentando configurar SSH en Windows...")
+    print("\n[TOOL] Intentando configurar SSH en Windows...")
     print("   Esto requiere permisos de administrador.\n")
 
     try:
@@ -171,11 +171,11 @@ def configurar_ssh_windows():
                 "No se pudo instalar OpenSSH Server. Ejecute PowerShell como Administrador.",
             )
 
-        print("   ✅ OpenSSH Server instalado")
+        print("   [OK] OpenSSH Server instalado")
 
         # Paso 2: Iniciar el servicio (requiere admin)
-        print("🚀 Iniciando servicio SSH...")
-        print("   ℹ️  Se solicitarán permisos de administrador...")
+        print("[>>] Iniciando servicio SSH...")
+        print("   [i]  Se solicitarán permisos de administrador...")
 
         result = subprocess.run(
             [
@@ -195,14 +195,14 @@ def configurar_ssh_windows():
         )
 
         if result.returncode == 0:
-            print("   ✅ Servicio SSH iniciado")
+            print("   [OK] Servicio SSH iniciado")
         else:
             print(
-                "   ⚠️  Error al iniciar servicio (puede requerir intervención manual)"
+                "   [!]  Error al iniciar servicio (puede requerir intervención manual)"
             )
 
         # Paso 3: Configurar inicio automático (requiere admin)
-        print("⚙️  Configurando inicio automático...")
+        print("[CFG]  Configurando inicio automático...")
 
         result = subprocess.run(
             [
@@ -222,9 +222,9 @@ def configurar_ssh_windows():
         )
 
         if result.returncode == 0:
-            print("   ✅ Inicio automático configurado")
+            print("   [OK] Inicio automático configurado")
         else:
-            print("   ⚠️  Advertencia al configurar inicio automático")
+            print("   [!]  Advertencia al configurar inicio automático")
 
         # Paso 4: Configurar firewall
         print("🔥 Configurando regla de firewall...")
@@ -246,19 +246,19 @@ def configurar_ssh_windows():
             or "PermissionDenied" in result.stderr
         ):
             print(
-                "   ⚠️  Regla de firewall NO creada (requiere permisos de administrador)"
+                "   [!]  Regla de firewall NO creada (requiere permisos de administrador)"
             )
             return (
                 True,
-                "SSH instalado pero la regla de firewall requiere ejecutar como Administrador.\n💡 Ejecute: PowerShell como Administrador y ejecute:\nNew-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22",
+                "SSH instalado pero la regla de firewall requiere ejecutar como Administrador.\n[TIP] Ejecute: PowerShell como Administrador y ejecute:\nNew-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22",
             )
         elif "ya existe" in result.stderr or "already exists" in result.stderr:
-            print("   ℹ️  Regla de firewall ya existe")
+            print("   [i]  Regla de firewall ya existe")
         elif result.returncode == 0:
-            print("   ✅ Regla de firewall agregada")
+            print("   [OK] Regla de firewall agregada")
         else:
             print(
-                f"   ⚠️  Advertencia al configurar firewall (código: {result.returncode})"
+                f"   [!]  Advertencia al configurar firewall (código: {result.returncode})"
             )
 
         return True, "SSH configurado exitosamente en Windows"
@@ -276,7 +276,7 @@ def configurar_ssh_linux():
     Returns:
         tuple: (exito, mensaje)
     """
-    print("\n📋 INSTRUCCIONES PARA CONFIGURAR SSH EN LINUX")
+    print("\n[INFO] INSTRUCCIONES PARA CONFIGURAR SSH EN LINUX")
     print("=" * 60)
     print("\nEjecute los siguientes comandos con privilegios de administrador:\n")
     print("# Ubuntu/Debian:")
@@ -308,28 +308,28 @@ def verificar_y_configurar_ssh():
     print("=" * 60)
 
     sistema = obtener_sistema()
-    print(f"\n🖥️  Sistema operativo: {sistema.upper()}")
+    print(f"\n[SRV]  Sistema operativo: {sistema.upper()}")
 
     # Verificar puerto 22
-    print("🔍 Verificando puerto 22...")
+    print("[FIND] Verificando puerto 22...")
     puerto_abierto = verificar_puerto_abierto()
 
     if puerto_abierto:
-        print("   ✅ Puerto 22 está abierto y escuchando")
+        print("   [OK] Puerto 22 está abierto y escuchando")
         return True
     else:
-        print("   ⚠️  Puerto 22 no está accesible")
+        print("   [!]  Puerto 22 no está accesible")
 
     # Verificar servicio según el sistema
     if sistema == "windows":
         instalado, corriendo, mensaje = verificar_ssh_windows()
-        print(f"\n📊 Estado: {mensaje}")
+        print(f"\n[STAT] Estado: {mensaje}")
 
         if corriendo:
-            print("   ✅ SSH está disponible para recibir conexiones")
+            print("   [OK] SSH está disponible para recibir conexiones")
             return True
         elif instalado and not corriendo:
-            print("\n💡 El servicio está instalado pero no está corriendo.")
+            print("\n[TIP] El servicio está instalado pero no está corriendo.")
             configurar = input("¿Desea iniciar el servicio SSH? (s/n): ").lower()
 
             if configurar == "s":
@@ -337,13 +337,13 @@ def verificar_y_configurar_ssh():
                     subprocess.run(
                         ["powershell", "-Command", "Start-Service sshd"], timeout=10
                     )
-                    print("✅ Servicio SSH iniciado")
+                    print("[OK] Servicio SSH iniciado")
                     return True
                 except Exception as e:
-                    print(f"❌ Error al iniciar servicio: {e}")
+                    print(f"[X] Error al iniciar servicio: {e}")
                     return False
         else:
-            print("\n💡 SSH no está instalado.")
+            print("\n[TIP] SSH no está instalado.")
             configurar = input("¿Desea instalar y configurar SSH? (s/n): ").lower()
 
             if configurar == "s":
@@ -353,10 +353,10 @@ def verificar_y_configurar_ssh():
 
     elif sistema == "linux":
         instalado, corriendo, mensaje = verificar_ssh_linux()
-        print(f"\n📊 Estado: {mensaje}")
+        print(f"\n[STAT] Estado: {mensaje}")
 
         if corriendo:
-            print("   ✅ SSH está disponible para recibir conexiones")
+            print("   [OK] SSH está disponible para recibir conexiones")
             return True
         else:
             configurar_ssh_linux()
@@ -365,10 +365,10 @@ def verificar_y_configurar_ssh():
             # Verificar nuevamente
             _, corriendo, _ = verificar_ssh_linux()
             if corriendo:
-                print("✅ SSH configurado exitosamente")
+                print("[OK] SSH configurado exitosamente")
                 return True
     else:
-        print(f"⚠️  Sistema '{sistema}' no soportado para configuración automática")
+        print(f"[!]  Sistema '{sistema}' no soportado para configuración automática")
 
     return False
 
@@ -382,11 +382,11 @@ def mostrar_estado_ssh():
     print("=" * 60)
 
     sistema = obtener_sistema()
-    print(f"\n🖥️  Sistema: {sistema.upper()}")
+    print(f"\n[SRV]  Sistema: {sistema.upper()}")
 
     # Verificar puerto
     puerto_abierto = verificar_puerto_abierto()
-    print(f"🔌 Puerto 22: {'✅ ABIERTO' if puerto_abierto else '❌ CERRADO'}")
+    print(f"🔌 Puerto 22: {'[OK] ABIERTO' if puerto_abierto else '[X] CERRADO'}")
 
     # Estado del servicio
     if sistema == "windows":
@@ -394,16 +394,16 @@ def mostrar_estado_ssh():
     elif sistema == "linux":
         instalado, corriendo, mensaje = verificar_ssh_linux()
     else:
-        print("\n⚠️  Sistema no soportado")
+        print("\n[!]  Sistema no soportado")
         return
 
-    print(f"📊 Estado: {mensaje}")
+    print(f"[STAT] Estado: {mensaje}")
 
     if instalado and corriendo:
-        print("\n✅ SSH está listo para recibir conexiones")
+        print("\n[OK] SSH está listo para recibir conexiones")
     elif instalado and not corriendo:
-        print("\n⚠️  SSH está instalado pero no está corriendo")
+        print("\n[!]  SSH está instalado pero no está corriendo")
     else:
-        print("\n❌ SSH no está configurado en este sistema")
+        print("\n[X] SSH no está configurado en este sistema")
 
     print("=" * 60)

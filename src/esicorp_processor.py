@@ -150,7 +150,7 @@ class ESICORPProcessor:
 
             # PASO 1: INTEGRIDAD - Calcular hash SHA-256
             if verbose:
-                print("🔍 [INTEGRIDAD] Calculando hash SHA-256...")
+                print("[FIND] [INTEGRIDAD] Calculando hash SHA-256...")
             hash_original = self.calcular_hash_sha256(file_path)
             hash_file = self.procesados_dir / f"{base_name}.hash.txt"
 
@@ -160,21 +160,21 @@ class ESICORPProcessor:
                 f.write(f"Fecha: {datetime.now().isoformat()}\n")
 
             if verbose:
-                print(f"   ✅ Hash: {hash_original[:32]}...")
+                print(f"   [OK] Hash: {hash_original[:32]}...")
 
             # PASO 2: CODIFICACIÓN - Convertir a Base64
             if verbose:
-                print("📝 [CODIFICACIÓN] Convirtiendo a Base64...")
+                print("[EDIT] [CODIFICACIÓN] Convirtiendo a Base64...")
             with open(file_path, "rb") as f:
                 file_data = f.read()
             file_base64 = base64.b64encode(file_data)
 
             if verbose:
-                print(f"   ✅ Codificado ({len(file_base64)} bytes)")
+                print(f"   [OK] Codificado ({len(file_base64)} bytes)")
 
             # PASO 3: CONFIDENCIALIDAD - Cifrar con AES-256-CBC
             if verbose:
-                print("🔐 [CONFIDENCIALIDAD] Cifrando con AES-256-CBC...")
+                print("[SEC] [CONFIDENCIALIDAD] Cifrando con AES-256-CBC...")
             clave, iv = self.generar_clave_aes()
             encrypted_data = self.cifrar_aes_256_cbc(file_base64, clave, iv)
 
@@ -188,7 +188,7 @@ class ESICORPProcessor:
                 f.write(encrypted_data)
 
             if verbose:
-                print(f"   ✅ Cifrado ({len(encrypted_data)} bytes)")
+                print(f"   [OK] Cifrado ({len(encrypted_data)} bytes)")
 
             # PASO 4: EMPAQUETADO - Crear ZIP
             if verbose:
@@ -213,14 +213,14 @@ Algoritmo Cifrado: AES-256-CBC
             hash_file.unlink()
 
             if verbose:
-                print(f"   ✅ ZIP creado: {zip_file.name}")
+                print(f"   [OK] ZIP creado: {zip_file.name}")
                 print(f"   Tamaño: {zip_file.stat().st_size} bytes")
-                print("✅ Procesamiento completado\n")
+                print("[OK] Procesamiento completado\n")
 
             return zip_file
 
         except Exception as e:
-            print(f"❌ ERROR al procesar {file_path.name}: {e}")
+            print(f"[X] ERROR al procesar {file_path.name}: {e}")
             return None
 
     def procesar_desde_ruta(self, ruta, es_carpeta=False):
@@ -237,23 +237,23 @@ Algoritmo Cifrado: AES-256-CBC
         archivos_a_procesar = []
 
         if es_carpeta:
-            print(f"\n📁 Procesando archivos de la carpeta: {ruta}")
+            print(f"\n[DIR] Procesando archivos de la carpeta: {ruta}")
             # Buscar todos los archivos en la carpeta
             for file_path in ruta.iterdir():
                 if file_path.is_file():
                     archivos_a_procesar.append(file_path)
 
             if not archivos_a_procesar:
-                print("⚠️  No se encontraron archivos en la carpeta")
+                print("[!]  No se encontraron archivos en la carpeta")
                 return []
 
-            print(f"✅ Encontrados {len(archivos_a_procesar)} archivo(s):")
+            print(f"[OK] Encontrados {len(archivos_a_procesar)} archivo(s):")
             for f in archivos_a_procesar:
                 print(f"   • {f.name}")
         else:
             # Es un archivo individual
             if not ruta.is_file():
-                print(f"❌ La ruta no es un archivo: {ruta}")
+                print(f"[X] La ruta no es un archivo: {ruta}")
                 return []
 
             archivos_a_procesar = [ruta]
@@ -269,7 +269,7 @@ Algoritmo Cifrado: AES-256-CBC
         if archivos_procesados:
             print("\n" + "=" * 60)
             print(
-                f"✅ Procesados: {len(archivos_procesados)}/{len(archivos_a_procesar)} archivos"
+                f"[OK] Procesados: {len(archivos_procesados)}/{len(archivos_a_procesar)} archivos"
             )
             print("=" * 60)
 
@@ -295,7 +295,7 @@ Algoritmo Cifrado: AES-256-CBC
         archivos_encontrados = self.buscar_archivos(strict=True)
 
         if not archivos_encontrados:
-            print("⚠️  No se encontraron archivos con el patrón: Area-DD-MM-AAAA.Sede")
+            print("[!]  No se encontraron archivos con el patrón: Area-DD-MM-AAAA.Sede")
             print(f"   Directorio: {self.salida_dir.absolute()}")
             print("\n   Ejemplos válidos:")
             print("   - Finanzas-12-12-2025.lima")
@@ -304,7 +304,7 @@ Algoritmo Cifrado: AES-256-CBC
 
             if permitir_seleccion:
                 print(
-                    "\n⚠️  ADVERTENCIA: Los archivos deben seguir el patrón para uso en producción."
+                    "\n[!]  ADVERTENCIA: Los archivos deben seguir el patrón para uso en producción."
                 )
                 continuar = input(
                     "\n¿Desea procesar TODOS los archivos en ./salida de todas formas? (s/n): "
@@ -315,11 +315,11 @@ Algoritmo Cifrado: AES-256-CBC
                     archivos_encontrados = self.buscar_archivos(strict=False)
 
                     if not archivos_encontrados:
-                        print("\n⚠️  No hay archivos en el directorio ./salida")
+                        print("\n[!]  No hay archivos en el directorio ./salida")
                         return []
 
                     print(
-                        f"\n⚠️  Procesando {len(archivos_encontrados)} archivo(s) SIN validar patrón:"
+                        f"\n[!]  Procesando {len(archivos_encontrados)} archivo(s) SIN validar patrón:"
                     )
                     for f in archivos_encontrados:
                         print(f"   • {f.name}")
@@ -330,7 +330,7 @@ Algoritmo Cifrado: AES-256-CBC
 
         else:
             print(
-                f"✅ Encontrados {len(archivos_encontrados)} archivo(s) con patrón correcto:"
+                f"[OK] Encontrados {len(archivos_encontrados)} archivo(s) con patrón correcto:"
             )
             for f in archivos_encontrados:
                 print(f"   • {f.name}")
@@ -344,7 +344,7 @@ Algoritmo Cifrado: AES-256-CBC
 
         print("=" * 60)
         print(
-            f"✅ Procesamiento completado: {len(archivos_procesados)}/{len(archivos_encontrados)} archivos"
+            f"[OK] Procesamiento completado: {len(archivos_procesados)}/{len(archivos_encontrados)} archivos"
         )
         print("=" * 60)
 

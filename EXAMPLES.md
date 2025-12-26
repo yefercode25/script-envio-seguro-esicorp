@@ -130,7 +130,7 @@ python main.py -i
 # 1. 📤 ENVIAR ARCHIVOS (SFTP)
 # 2. 📋 INFORMACIÓN DEL SERVIDOR
 # 3. 🔑 GESTIÓN DE LLAVES RSA
-# 4. 🚪 SALIR
+# 4. [EXIT] SALIR
 
 # Seleccionar: 3
 

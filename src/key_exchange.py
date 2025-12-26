@@ -66,7 +66,7 @@ def crear_directorio_ssh():
 
     try:
         if not ssh_dir.exists():
-            print(f"📁 Creando directorio: {ssh_dir}")
+            print(f"[DIR] Creando directorio: {ssh_dir}")
             ssh_dir.mkdir(mode=0o700, parents=True)
 
         # Configurar permisos según el sistema
@@ -89,13 +89,13 @@ def crear_directorio_ssh():
                     capture_output=True,
                     check=True,
                 )
-                print(f"🔒 Permisos configurados en Windows")
+                print(f"[LOCK] Permisos configurados en Windows")
             except Exception as e:
-                print(f"⚠️  Advertencia al configurar permisos: {e}")
+                print(f"[!]  Advertencia al configurar permisos: {e}")
         else:
             # En Linux/Mac usar chmod
             os.chmod(ssh_dir, 0o700)
-            print(f"🔒 Permisos configurados (chmod 700)")
+            print(f"[LOCK] Permisos configurados (chmod 700)")
 
         return True, f"Directorio .ssh verificado: {ssh_dir}"
 
@@ -130,7 +130,7 @@ def configurar_permisos_archivo(archivo_path):
             os.chmod(archivo_path, 0o600)
 
     except Exception as e:
-        print(f"⚠️  Advertencia al configurar permisos de {archivo_path.name}: {e}")
+        print(f"[!]  Advertencia al configurar permisos de {archivo_path.name}: {e}")
 
 
 # ============================================================================
@@ -245,13 +245,13 @@ def recibir_mensaje(conexion, timeout=TIMEOUT_INTERCAMBIO):
         return mensaje
 
     except socket.timeout:
-        print("⏱️  Timeout al recibir mensaje")
+        print("[TIME]  Timeout al recibir mensaje")
         return None
     except json.JSONDecodeError:
-        print("❌ Error al decodificar mensaje JSON")
+        print("[X] Error al decodificar mensaje JSON")
         return None
     except Exception as e:
-        print(f"❌ Error al recibir mensaje: {e}")
+        print(f"[X] Error al recibir mensaje: {e}")
         return None
 
 
@@ -280,7 +280,7 @@ def agregar_a_authorized_keys(llave_publica, info_remota):
         ssh_dir = obtener_ruta_ssh()
         authorized_keys = ssh_dir / "authorized_keys"
 
-        print(f"\n📝 Configurando authorized_keys...")
+        print(f"\n[EDIT] Configurando authorized_keys...")
         print(f"   Archivo: {authorized_keys}")
 
         # Leer archivo existente
@@ -293,7 +293,7 @@ def agregar_a_authorized_keys(llave_publica, info_remota):
         llave_limpia = llave_publica.strip()
         for llave_existente in llaves_existentes:
             if llave_limpia in llave_existente:
-                print(f"   ℹ️  Llave ya existe en authorized_keys")
+                print(f"   [i]  Llave ya existe en authorized_keys")
                 return True, "Llave ya configurada previamente"
 
         # Agregar nueva llave con comentario
@@ -304,12 +304,12 @@ def agregar_a_authorized_keys(llave_publica, info_remota):
             f.write(comentario)
             f.write(llave_publica.strip() + "\n")
 
-        print(f"   ✅ Llave agregada a authorized_keys")
+        print(f"   [OK] Llave agregada a authorized_keys")
 
         # Configurar permisos
-        print(f"   🔒 Configurando permisos...")
+        print(f"   [LOCK] Configurando permisos...")
         configurar_permisos_archivo(authorized_keys)
-        print(f"   ✅ Permisos configurados")
+        print(f"   [OK] Permisos configurados")
 
         return True, f"Llave agregada exitosamente a {authorized_keys}"
 
@@ -338,7 +338,7 @@ def agregar_a_known_hosts(ip_servidor, llave_publica, info_remota):
         ssh_dir = obtener_ruta_ssh()
         known_hosts = ssh_dir / "known_hosts"
 
-        print(f"\n📝 Configurando known_hosts...")
+        print(f"\n[EDIT] Configurando known_hosts...")
         print(f"   Archivo: {known_hosts}")
 
         # Formato: ip tipo_llave contenido_base64
@@ -367,7 +367,7 @@ def agregar_a_known_hosts(ip_servidor, llave_publica, info_remota):
             )
             f.write(entrada)
 
-        print(f"   ✅ Servidor agregado a known_hosts")
+        print(f"   [OK] Servidor agregado a known_hosts")
 
         # Configurar permisos
         configurar_permisos_archivo(known_hosts)
@@ -404,8 +404,8 @@ def intercambiar_llaves_servidor(conexion, usuario_local):
         print(f"{'═' * 60}")
 
         # ========== FASE 1: HANDSHAKE ==========
-        print(f"\n🔄 FASE 1: Intercambio de información")
-        print(f"   📡 Enviando información del servidor...")
+        print(f"\n[PROC] FASE 1: Intercambio de información")
+        print(f"   [SEND] Enviando información del servidor...")
 
         hostname = obtener_nombre_host()
         sistema = platform.system().lower()
@@ -418,42 +418,42 @@ def intercambiar_llaves_servidor(conexion, usuario_local):
 
         mensaje_handshake = crear_mensaje("HANDSHAKE", info_servidor)
         conexion.send(mensaje_handshake)
-        print(f"   ✅ Información enviada")
+        print(f"   [OK] Información enviada")
 
         # Recibir handshake del cliente
-        print(f"   📥 Recibiendo información del cliente...")
+        print(f"   [DOWN] Recibiendo información del cliente...")
         mensaje_cliente = recibir_mensaje(conexion)
 
         if not mensaje_cliente or mensaje_cliente.get("tipo") != "HANDSHAKE":
-            print(f"   ❌ Error: Handshake inválido")
+            print(f"   [X] Error: Handshake inválido")
             return False
 
         info_cliente = mensaje_cliente.get("datos", {})
-        print(f"   ✅ Información recibida:")
+        print(f"   [OK] Información recibida:")
         print(f"      • Hostname: {info_cliente.get('hostname', 'unknown')}")
         print(f"      • Usuario: {info_cliente.get('usuario', 'unknown')}")
         print(f"      • Sistema: {info_cliente.get('sistema', 'unknown').upper()}")
 
         # ========== FASE 2: INTERCAMBIO DE LLAVES PÚBLICAS ==========
-        print(f"\n🔄 FASE 2: Intercambio de llaves públicas")
+        print(f"\n[PROC] FASE 2: Intercambio de llaves públicas")
 
         # Leer nuestra llave pública desde ./keys/
         print("   📖 Leyendo llave pública del servidor...")
         llave_pub_path = KEYS_DIR / "id_rsa.pub"
 
         if not llave_pub_path.exists():
-            print("   ❌ Error: No se encontró la llave pública")
+            print("   [X] Error: No se encontró la llave pública")
             print(f"      Buscada en: {llave_pub_path}")
-            print(f"      💡 Genera las llaves primero con Opción 3")
+            print(f"      [TIP] Genera las llaves primero con Opción 3")
             return False
 
         with open(llave_pub_path, "r") as f:
             llave_publica_servidor = f.read().strip()
 
-        print(f"   ✅ Llave pública leída ({len(llave_publica_servidor)} bytes)")
+        print(f"   [OK] Llave pública leída ({len(llave_publica_servidor)} bytes)")
 
         # Enviar nuestra llave pública
-        print(f"   📤 Enviando llave pública del servidor...")
+        print(f"   [UP] Enviando llave pública del servidor...")
         mensaje_llave = crear_mensaje(
             "PUBLIC_KEY",
             {
@@ -463,17 +463,17 @@ def intercambiar_llaves_servidor(conexion, usuario_local):
             },
         )
         conexion.send(mensaje_llave)
-        print(f"   ✅ Llave enviada")
+        print(f"   [OK] Llave enviada")
 
         # Recibir llave pública del cliente
-        print(f"   📥 Recibiendo llave pública del cliente...")
+        print(f"   [DOWN] Recibiendo llave pública del cliente...")
         mensaje_llave_cliente = recibir_mensaje(conexion)
 
         if (
             not mensaje_llave_cliente
             or mensaje_llave_cliente.get("tipo") != "PUBLIC_KEY"
         ):
-            print(f"   ❌ Error: Mensaje de llave inválido")
+            print(f"   [X] Error: Mensaje de llave inválido")
             return False
 
         llave_publica_cliente = mensaje_llave_cliente.get("datos", {}).get(
@@ -481,27 +481,27 @@ def intercambiar_llaves_servidor(conexion, usuario_local):
         )
 
         if not llave_publica_cliente:
-            print(f"   ❌ Error: Llave pública vacía")
+            print(f"   [X] Error: Llave pública vacía")
             return False
 
-        print(f"   ✅ Llave recibida ({len(llave_publica_cliente)} bytes)")
+        print(f"   [OK] Llave recibida ({len(llave_publica_cliente)} bytes)")
 
         # Validar llave del cliente
-        print(f"\n   🔍 Validando llave del cliente...")
+        print(f"\n   [FIND] Validando llave del cliente...")
         es_valida, tipo_llave, bits = validar_llave_publica(llave_publica_cliente)
 
         if not es_valida:
-            print(f"   ❌ Llave inválida")
+            print(f"   [X] Llave inválida")
             return False
 
-        print(f"   ✅ Llave válida:")
+        print(f"   [OK] Llave válida:")
         print(f"      • Tipo: {tipo_llave}")
         if bits:
             print(f"      • Tamaño aprox: {bits} bits")
 
         # Mostrar fingerprint
         fingerprint = calcular_fingerprint(llave_publica_cliente)
-        print(f"\n   🔎 Fingerprint de la llave del cliente:")
+        print(f"\n   [CHK] Fingerprint de la llave del cliente:")
         print(f"      {fingerprint}")
 
         # ========== FASE 3: CONFIRMACIÓN DEL USUARIO ==========
@@ -521,28 +521,28 @@ def intercambiar_llaves_servidor(conexion, usuario_local):
         ).lower()
 
         if respuesta != "s":
-            print(f"\n❌ Intercambio cancelado por el usuario")
+            print(f"\n[X] Intercambio cancelado por el usuario")
             mensaje_error = crear_mensaje("ERROR", {"razon": "Cancelado por usuario"})
             conexion.send(mensaje_error)
             return False
 
         # ========== FASE 4: CONFIGURACIÓN DE LLAVES ==========
-        print(f"\n🔄 FASE 3: Configuración de llaves")
+        print(f"\n[PROC] FASE 3: Configuración de llaves")
 
         # Agregar llave del cliente a authorized_keys
         exito, mensaje = agregar_a_authorized_keys(llave_publica_cliente, info_cliente)
 
         if not exito:
-            print(f"   ❌ {mensaje}")
+            print(f"   [X] {mensaje}")
             mensaje_error = crear_mensaje("ERROR", {"razon": mensaje})
             conexion.send(mensaje_error)
             return False
 
-        print(f"   ✅ {mensaje}")
+        print(f"   [OK] {mensaje}")
 
         # ========== FASE 5: CONFIRMACIÓN FINAL ==========
-        print(f"\n🔄 FASE 4: Confirmación")
-        print(f"   📡 Enviando confirmación al cliente...")
+        print(f"\n[PROC] FASE 4: Confirmación")
+        print(f"   [SEND] Enviando confirmación al cliente...")
 
         mensaje_ack = crear_mensaje(
             "ACK",
@@ -552,21 +552,21 @@ def intercambiar_llaves_servidor(conexion, usuario_local):
             },
         )
         conexion.send(mensaje_ack)
-        print(f"   ✅ Confirmación enviada")
+        print(f"   [OK] Confirmación enviada")
 
         # Esperar confirmación del cliente
-        print(f"   📥 Esperando confirmación del cliente...")
+        print(f"   [DOWN] Esperando confirmación del cliente...")
         mensaje_ack_cliente = recibir_mensaje(conexion, timeout=30)
 
         if mensaje_ack_cliente and mensaje_ack_cliente.get("tipo") == "ACK":
-            print(f"   ✅ Cliente confirmó configuración exitosa")
+            print(f"   [OK] Cliente confirmó configuración exitosa")
         else:
-            print(f"   ⚠️  No se recibió confirmación del cliente")
+            print(f"   [!]  No se recibió confirmación del cliente")
 
         return True
 
     except Exception as e:
-        print(f"\n❌ Error durante el intercambio: {e}")
+        print(f"\n[X] Error durante el intercambio: {e}")
         return False
 
 
@@ -592,14 +592,14 @@ def modo_servidor_intercambio(puerto=PUERTO_DEFAULT):
     print(f"{'═' * 60}")
 
     # Verificar/generar llaves
-    print(f"\n🔍 Verificando llaves RSA locales...")
+    print(f"\n[FIND] Verificando llaves RSA locales...")
     sftp_mgr = SFTPManager()
 
     if not sftp_mgr.verificar_llaves():
-        print(f"⚠️  Generando nuevas llaves...")
+        print(f"[!]  Generando nuevas llaves...")
         sftp_mgr.generar_llaves()
 
-    print(f"✅ Llaves RSA disponibles")
+    print(f"[OK] Llaves RSA disponibles")
 
     # Mostrar información del servidor
     ip_local = obtener_ip_local()
@@ -623,20 +623,20 @@ def modo_servidor_intercambio(puerto=PUERTO_DEFAULT):
         servidor.listen(1)
         servidor.settimeout(300)  # 5 minutos
 
-        print(f"✅ Servidor escuchando en {ip_local}:{puerto}")
-        print(f"\n💡 Comparta esta información con el cliente:")
+        print(f"[OK] Servidor escuchando en {ip_local}:{puerto}")
+        print(f"\n[TIP] Comparta esta información con el cliente:")
         print(f"{'─' * 60}")
         print(f"  IP del Servidor: {ip_local}")
         print(f"  Puerto: {puerto}")
         print(f"{'─' * 60}")
-        print(f"\n⏳ Esperando conexión del cliente...")
+        print(f"\n[...] Esperando conexión del cliente...")
         print(f"   (Timeout en 5 minutos)")
 
         # Aceptar conexión
         conexion, direccion_cliente = servidor.accept()
         ip_cliente = direccion_cliente[0]
 
-        print(f"\n✅ Cliente conectado desde: {ip_cliente}")
+        print(f"\n[OK] Cliente conectado desde: {ip_cliente}")
 
         # Realizar intercambio
         exito = intercambiar_llaves_servidor(conexion, usuario)
@@ -646,31 +646,31 @@ def modo_servidor_intercambio(puerto=PUERTO_DEFAULT):
 
         if exito:
             print(f"\n{'═' * 60}")
-            print(f"🎉 ¡INTERCAMBIO COMPLETADO EXITOSAMENTE!")
+            print(f"[***] ¡INTERCAMBIO COMPLETADO EXITOSAMENTE!")
             print(f"{'═' * 60}")
-            print(f"\n📊 Resumen:")
-            print(f"   ✅ Llave del cliente agregada a authorized_keys")
-            print(f"   ✅ Cliente puede conectarse desde: {ip_cliente}")
-            print(f"   ✅ Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"\n💡 El cliente ahora puede conectarse con:")
+            print(f"\n[STAT] Resumen:")
+            print(f"   [OK] Llave del cliente agregada a authorized_keys")
+            print(f"   [OK] Cliente puede conectarse desde: {ip_cliente}")
+            print(f"   [OK] Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"\n[TIP] El cliente ahora puede conectarse con:")
             print(f"   ssh {usuario}@{ip_local}")
         else:
             print(f"\n{'═' * 60}")
-            print(f"❌ INTERCAMBIO FALLIDO")
+            print(f"[X] INTERCAMBIO FALLIDO")
             print(f"{'═' * 60}")
 
         return exito
 
     except socket.timeout:
-        print(f"\n⏱️  Timeout: No se recibió conexión en 5 minutos")
+        print(f"\n[TIME]  Timeout: No se recibió conexión en 5 minutos")
         servidor.close()
         return False
     except KeyboardInterrupt:
-        print(f"\n\n⚠️  Interrumpido por el usuario")
+        print(f"\n\n[!]  Interrumpido por el usuario")
         servidor.close()
         return False
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n[X] Error: {e}")
         try:
             servidor.close()
         except:
@@ -709,8 +709,8 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
         sistema = platform.system().lower()
 
         # ========== FASE 1: HANDSHAKE ==========
-        print(f"\n🔄 FASE 1: Intercambio de información")
-        print(f"   📡 Enviando información del cliente...")
+        print(f"\n[PROC] FASE 1: Intercambio de información")
+        print(f"   [SEND] Enviando información del cliente...")
 
         info_cliente = {
             "hostname": hostname,
@@ -720,34 +720,34 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
 
         mensaje_handshake = crear_mensaje("HANDSHAKE", info_cliente)
         conexion.send(mensaje_handshake)
-        print(f"   ✅ Información enviada")
+        print(f"   [OK] Información enviada")
 
         # Recibir handshake del servidor
-        print(f"   📥 Recibiendo información del servidor...")
+        print(f"   [DOWN] Recibiendo información del servidor...")
         mensaje_servidor = recibir_mensaje(conexion)
 
         if not mensaje_servidor or mensaje_servidor.get("tipo") != "HANDSHAKE":
-            print(f"   ❌ Error: Handshake inválido")
+            print(f"   [X] Error: Handshake inválido")
             return False
 
         info_servidor = mensaje_servidor.get("datos", {})
-        print(f"   ✅ Información recibida:")
+        print(f"   [OK] Información recibida:")
         print(f"      • Hostname: {info_servidor.get('hostname', 'unknown')}")
         print(f"      • Usuario: {info_servidor.get('usuario', 'unknown')}")
         print(f"      • Sistema: {info_servidor.get('sistema', 'unknown').upper()}")
 
         # ========== FASE 2: INTERCAMBIO DE LLAVES PÚBLICAS ==========
-        print(f"\n🔄 FASE 2: Intercambio de llaves públicas")
+        print(f"\n[PROC] FASE 2: Intercambio de llaves públicas")
 
         # Recibir llave pública del servidor primero
-        print(f"   📥 Recibiendo llave pública del servidor...")
+        print(f"   [DOWN] Recibiendo llave pública del servidor...")
         mensaje_llave_servidor = recibir_mensaje(conexion)
 
         if (
             not mensaje_llave_servidor
             or mensaje_llave_servidor.get("tipo") != "PUBLIC_KEY"
         ):
-            print(f"   ❌ Error: Mensaje de llave inválido")
+            print(f"   [X] Error: Mensaje de llave inválido")
             return False
 
         llave_publica_servidor = mensaje_llave_servidor.get("datos", {}).get(
@@ -755,27 +755,27 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
         )
 
         if not llave_publica_servidor:
-            print(f"   ❌ Error: Llave pública vacía")
+            print(f"   [X] Error: Llave pública vacía")
             return False
 
-        print(f"   ✅ Llave recibida ({len(llave_publica_servidor)} bytes)")
+        print(f"   [OK] Llave recibida ({len(llave_publica_servidor)} bytes)")
 
         # Validar llave del servidor
-        print(f"\n   🔍 Validando llave del servidor...")
+        print(f"\n   [FIND] Validando llave del servidor...")
         es_valida, tipo_llave, bits = validar_llave_publica(llave_publica_servidor)
 
         if not es_valida:
-            print(f"   ❌ Llave inválida")
+            print(f"   [X] Llave inválida")
             return False
 
-        print(f"   ✅ Llave válida:")
+        print(f"   [OK] Llave válida:")
         print(f"      • Tipo: {tipo_llave}")
         if bits:
             print(f"      • Tamaño aprox: {bits} bits")
 
         # Mostrar fingerprint
         fingerprint = calcular_fingerprint(llave_publica_servidor)
-        print(f"\n   🔎 Fingerprint de la llave del servidor:")
+        print(f"\n   [CHK] Fingerprint de la llave del servidor:")
         print(f"      {fingerprint}")
 
         # Leer nuestra llave pública desde ./keys/
@@ -783,18 +783,18 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
         llave_pub_path = KEYS_DIR / "id_rsa.pub"
 
         if not llave_pub_path.exists():
-            print("   ❌ Error: No se encontró la llave pública")
+            print("   [X] Error: No se encontró la llave pública")
             print(f"      Buscada en: {llave_pub_path}")
-            print(f"      💡 Genera las llaves primero con Opción 3")
+            print(f"      [TIP] Genera las llaves primero con Opción 3")
             return False
 
         with open(llave_pub_path, "r") as f:
             llave_publica_cliente = f.read().strip()
 
-        print(f"   ✅ Llave pública leída ({len(llave_publica_cliente)} bytes)")
+        print(f"   [OK] Llave pública leída ({len(llave_publica_cliente)} bytes)")
 
         # Enviar nuestra llave pública
-        print(f"   📤 Enviando llave pública del cliente...")
+        print(f"   [UP] Enviando llave pública del cliente...")
         mensaje_llave = crear_mensaje(
             "PUBLIC_KEY",
             {
@@ -804,7 +804,7 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
             },
         )
         conexion.send(mensaje_llave)
-        print(f"   ✅ Llave enviada")
+        print(f"   [OK] Llave enviada")
 
         # ========== FASE 3: CONFIRMACIÓN DEL USUARIO ==========
         print(f"\n{'═' * 60}")
@@ -822,13 +822,13 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
         respuesta = input(f"\n¿Desea agregar esta llave a known_hosts? (s/n): ").lower()
 
         if respuesta != "s":
-            print(f"\n❌ Intercambio cancelado por el usuario")
+            print(f"\n[X] Intercambio cancelado por el usuario")
             mensaje_error = crear_mensaje("ERROR", {"razon": "Cancelado por usuario"})
             conexion.send(mensaje_error)
             return False
 
         # ========== FASE 4: CONFIGURACIÓN DE LLAVES ==========
-        print(f"\n🔄 FASE 3: Configuración de llaves")
+        print(f"\n[PROC] FASE 3: Configuración de llaves")
 
         # Agregar llave del servidor a known_hosts
         exito, mensaje = agregar_a_known_hosts(
@@ -836,27 +836,27 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
         )
 
         if not exito:
-            print(f"   ❌ {mensaje}")
+            print(f"   [X] {mensaje}")
             mensaje_error = crear_mensaje("ERROR", {"razon": mensaje})
             conexion.send(mensaje_error)
             return False
 
-        print(f"   ✅ {mensaje}")
+        print(f"   [OK] {mensaje}")
 
         # ========== FASE 5: CONFIRMACIÓN FINAL ==========
-        print(f"\n🔄 FASE 4: Confirmación")
-        print(f"   📥 Esperando confirmación del servidor...")
+        print(f"\n[PROC] FASE 4: Confirmación")
+        print(f"   [DOWN] Esperando confirmación del servidor...")
 
         mensaje_ack_servidor = recibir_mensaje(conexion, timeout=30)
 
         if not mensaje_ack_servidor or mensaje_ack_servidor.get("tipo") != "ACK":
-            print(f"   ❌ No se recibió confirmación del servidor")
+            print(f"   [X] No se recibió confirmación del servidor")
             return False
 
-        print(f"   ✅ Servidor confirmó configuración exitosa")
+        print(f"   [OK] Servidor confirmó configuración exitosa")
 
         # Enviar nuestra confirmación
-        print(f"   📡 Enviando confirmación al servidor...")
+        print(f"   [SEND] Enviando confirmación al servidor...")
         mensaje_ack = crear_mensaje(
             "ACK",
             {
@@ -865,12 +865,12 @@ def intercambiar_llaves_cliente(conexion, ip_servidor):
             },
         )
         conexion.send(mensaje_ack)
-        print(f"   ✅ Confirmación enviada")
+        print(f"   [OK] Confirmación enviada")
 
         return True
 
     except Exception as e:
-        print(f"\n❌ Error durante el intercambio: {e}")
+        print(f"\n[X] Error durante el intercambio: {e}")
         import traceback
 
         traceback.print_exc()
@@ -896,14 +896,14 @@ def modo_cliente_intercambio(ip_servidor=None, puerto=PUERTO_DEFAULT):
     print(f"{'═' * 60}")
 
     # Verificar/generar llaves
-    print(f"\n🔍 Verificando llaves RSA locales...")
+    print(f"\n[FIND] Verificando llaves RSA locales...")
     sftp_mgr = SFTPManager()
 
     if not sftp_mgr.verificar_llaves():
-        print(f"⚠️  Generando nuevas llaves...")
+        print(f"[!]  Generando nuevas llaves...")
         sftp_mgr.generar_llaves()
 
-    print(f"✅ Llaves RSA disponibles")
+    print(f"[OK] Llaves RSA disponibles")
 
     # Solicitar IP del servidor si no se proporcionó
     if not ip_servidor:
@@ -911,7 +911,7 @@ def modo_cliente_intercambio(ip_servidor=None, puerto=PUERTO_DEFAULT):
         ip_servidor = input("Ingrese la IP del servidor: ").strip()
 
         if not ip_servidor:
-            print(f"❌ IP del servidor requerida")
+            print(f"[X] IP del servidor requerida")
             return False
 
     print(f"\n🔌 Conectando a {ip_servidor}:{puerto}...")
@@ -922,7 +922,7 @@ def modo_cliente_intercambio(ip_servidor=None, puerto=PUERTO_DEFAULT):
         cliente.settimeout(TIMEOUT_CONEXION)
         cliente.connect((ip_servidor, puerto))
 
-        print(f"✅ Conectado al servidor {ip_servidor}")
+        print(f"[OK] Conectado al servidor {ip_servidor}")
 
         # Realizar intercambio
         exito = intercambiar_llaves_cliente(cliente, ip_servidor)
@@ -931,52 +931,52 @@ def modo_cliente_intercambio(ip_servidor=None, puerto=PUERTO_DEFAULT):
 
         if exito:
             usuario_servidor = input(
-                f"\n💡 Ingrese el usuario del servidor (para SSH): "
+                f"\n[TIP] Ingrese el usuario del servidor (para SSH): "
             ).strip()
             if not usuario_servidor:
                 usuario_servidor = "usuario"
 
             print(f"\n{'═' * 60}")
-            print(f"🎉 ¡INTERCAMBIO COMPLETADO EXITOSAMENTE!")
+            print(f"[***] ¡INTERCAMBIO COMPLETADO EXITOSAMENTE!")
             print(f"{'═' * 60}")
-            print(f"\n📊 Resumen:")
-            print(f"   ✅ Llave del servidor agregada a known_hosts")
-            print(f"   ✅ Su llave fue enviada al servidor")
-            print(f"   ✅ Servidor: {ip_servidor}")
-            print(f"   ✅ Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"\n💡 Ahora puede conectarse con:")
+            print(f"\n[STAT] Resumen:")
+            print(f"   [OK] Llave del servidor agregada a known_hosts")
+            print(f"   [OK] Su llave fue enviada al servidor")
+            print(f"   [OK] Servidor: {ip_servidor}")
+            print(f"   [OK] Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"\n[TIP] Ahora puede conectarse con:")
             print(f"   ssh {usuario_servidor}@{ip_servidor}")
-            print(f"\n💡 O usar en el script:")
+            print(f"\n[TIP] O usar en el script:")
             print(
                 f"   python main.py --esicorp --sftp-host {ip_servidor} --sftp-user {usuario_servidor}"
             )
         else:
             print(f"\n{'═' * 60}")
-            print(f"❌ INTERCAMBIO FALLIDO")
+            print(f"[X] INTERCAMBIO FALLIDO")
             print(f"{'═' * 60}")
 
         return exito
 
     except socket.timeout:
-        print(f"\n⏱️  Timeout: No se pudo conectar al servidor")
+        print(f"\n[TIME]  Timeout: No se pudo conectar al servidor")
         print(f"   Verifique que el servidor esté escuchando en {ip_servidor}:{puerto}")
         return False
     except ConnectionRefusedError:
-        print(f"\n❌ Error: Conexión rechazada")
+        print(f"\n[X] Error: Conexión rechazada")
         print(f"   Verifique que:")
         print(f"   1. El servidor esté escuchando en el puerto {puerto}")
         print(f"   2. El firewall permita conexiones en ese puerto")
         print(f"   3. La IP {ip_servidor} sea correcta")
         return False
     except KeyboardInterrupt:
-        print(f"\n\n⚠️  Interrumpido por el usuario")
+        print(f"\n\n[!]  Interrumpido por el usuario")
         try:
             cliente.close()
         except:
             pass
         return False
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n[X] Error: {e}")
         import traceback
 
         traceback.print_exc()

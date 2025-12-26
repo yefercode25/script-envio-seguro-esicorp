@@ -59,7 +59,7 @@ class SFTPManager:
             return self.private_key_path, self.public_key_path
 
         try:
-            print("🔑 Generando llaves RSA de 4096 bits...")
+            print("[KEY] Generando llaves RSA de 4096 bits...")
             print("   (Esto puede tomar unos segundos)")
 
             # AUTENTICACIÓN: Generar par de llaves RSA de 4096 bits
@@ -90,14 +90,14 @@ class SFTPManager:
             with open(self.public_key_path, "wb") as f:
                 f.write(public_pem)
 
-            print(f"✅ Llaves generadas exitosamente:")
+            print(f"[OK] Llaves generadas exitosamente:")
             print(f"   Privada: {self.private_key_path}")
             print(f"   Pública: {self.public_key_path}")
 
             return self.private_key_path, self.public_key_path
 
         except Exception as e:
-            print(f"❌ Error al generar llaves: {e}")
+            print(f"[X] Error al generar llaves: {e}")
             return None, None
 
     def mostrar_instrucciones_configuracion(self, hostname, username):
@@ -109,7 +109,7 @@ class SFTPManager:
             username (str): Usuario del servidor
         """
         print("\n" + "🔴" * 30)
-        print("⚠️  CONFIGURACIÓN REQUERIDA - SERVIDOR LINUX ⚠️")
+        print("[!]  CONFIGURACIÓN REQUERIDA - SERVIDOR LINUX [!]")
         print("🔴" * 30)
         print("\nPara autenticarse en el servidor SFTP, copie la llave pública:")
         print(f"\n1. Archivo: {self.public_key_path.absolute()}")
@@ -143,12 +143,12 @@ class SFTPManager:
             tuple: (sftp_client, ssh_client) o (None, None) si falla
         """
         if paramiko is None:
-            print("❌ ERROR: paramiko no está instalado")
+            print("[X] ERROR: paramiko no está instalado")
             print("   Ejecute: pip install paramiko")
             return None, None
 
         if not self.verificar_llaves():
-            print("❌ ERROR: No se encontraron llaves RSA")
+            print("[X] ERROR: No se encontraron llaves RSA")
             print("   Genere las llaves primero con generar_llaves()")
             return None, None
 
@@ -178,22 +178,22 @@ class SFTPManager:
             # Abrir sesión SFTP
             sftp_client = ssh_client.open_sftp()
 
-            print("✅ Conexión SFTP establecida exitosamente")
+            print("[OK] Conexión SFTP establecida exitosamente")
             return sftp_client, ssh_client
 
         except paramiko.AuthenticationException:
-            print("\n❌ ERROR DE AUTENTICACIÓN")
+            print("\n[X] ERROR DE AUTENTICACIÓN")
             print("=" * 60)
             print("La llave pública no está configurada en el servidor.")
             self.mostrar_instrucciones_configuracion(hostname, username)
             return None, None
 
         except paramiko.SSHException as e:
-            print(f"❌ ERROR SSH: {e}")
+            print(f"[X] ERROR SSH: {e}")
             return None, None
 
         except Exception as e:
-            print(f"❌ ERROR de conexión: {e}")
+            print(f"[X] ERROR de conexión: {e}")
             print(f"   Verifique que {hostname}:{port} sea accesible")
             return None, None
 
@@ -212,7 +212,7 @@ class SFTPManager:
         try:
             local_path = Path(local_path)
 
-            print(f"📤 Subiendo: {local_path.name}")
+            print(f"[UP] Subiendo: {local_path.name}")
             print(f"   Destino: {remote_path}")
 
             # Transferir archivo
@@ -223,15 +223,15 @@ class SFTPManager:
             local_size = local_path.stat().st_size
 
             if remote_size == local_size:
-                print(f"   ✅ Subido exitosamente ({local_size} bytes)")
+                print(f"   [OK] Subido exitosamente ({local_size} bytes)")
                 return True
             else:
-                print(f"   ⚠️  Advertencia: Tamaño difiere")
+                print(f"   [!]  Advertencia: Tamaño difiere")
                 return False
 
         except PermissionError as e:
-            print(f"   ❌ ERROR: Permiso denegado")
-            print(f"      💡 Solución: En el servidor, ejecuta:")
+            print(f"   [X] ERROR: Permiso denegado")
+            print(f"      [TIP] Solución: En el servidor, ejecuta:")
             print(
                 f"         sudo chown {sftp_client.normalize('').split('/')[-2]}:grupo {remote_path.rsplit('/', 2)[0]}/"
             )
@@ -239,9 +239,9 @@ class SFTPManager:
             return False
         except IOError as e:
             if "Permission denied" in str(e) or "[Errno 13]" in str(e):
-                print(f"   ❌ ERROR: Permiso denegado para escribir en:")
+                print(f"   [X] ERROR: Permiso denegado para escribir en:")
                 print(f"      {remote_path}")
-                print(f"\n      💡 Soluciones posibles:")
+                print(f"\n      [TIP] Soluciones posibles:")
                 print(f"      1. Verifica que el directorio exista")
                 print(f"      2. Verifica permisos del directorio")
                 print(f"      3. En el servidor, ejecuta:")
@@ -251,10 +251,10 @@ class SFTPManager:
                 )
                 print(f"         sudo chmod 755 {remote_path.rsplit('/', 1)[0]}")
             else:
-                print(f"   ❌ ERROR: {e}")
+                print(f"   [X] ERROR: {e}")
             return False
         except Exception as e:
-            print(f"   ❌ ERROR: {e}")
+            print(f"   [X] ERROR: {e}")
             return False
 
     def cerrar_conexion(self, sftp_client, ssh_client):
