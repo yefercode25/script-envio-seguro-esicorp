@@ -114,6 +114,10 @@ class ESICORPApp:
             input("\nPresione Enter para continuar...")
             return
 
+        # Asegurar que remote_path termine con /
+        if not remote_path.endswith("/"):
+            remote_path = remote_path + "/"
+
         try:
             # Enviar archivos
             exitosos = 0
@@ -240,15 +244,13 @@ class ESICORPApp:
         verificar_y_configurar_ssh()
         input("\nPresione Enter para continuar...")
 
-
-
     # ==========================================
     # INTERCAMBIO AUTOMÁTICO DE LLAVES
     # ==========================================
     def intercambio_llaves(self):
         """Menú de intercambio automático de llaves RSA."""
         from src.key_exchange import modo_servidor_intercambio, modo_cliente_intercambio
-        
+
         while True:
             print_banner()
             print("🔐 INTERCAMBIO AUTOMÁTICO DE LLAVES RSA")
@@ -257,26 +259,27 @@ class ESICORPApp:
             print("2. 💻 MODO CLIENTE (Conectar a servidor)")
             print("3. 🔙 VOLVER")
             print("\n")
-            
+
             opcion = input("Seleccione opción [1-3]: ").strip()
-            
+
             if opcion == "1":
                 # Modo servidor
                 print_banner()
                 modo_servidor_intercambio()
                 input("\nPresione Enter para continuar...")
-                
+
             elif opcion == "2":
                 # Modo cliente
                 print_banner()
                 modo_cliente_intercambio()
                 input("\nPresione Enter para continuar...")
-                
+
             elif opcion == "3":
                 break
             else:
                 print("\n⚠️  Opción inválida")
                 input("\nPresione Enter para continuar...")
+
 
 # ==========================================
 # PUNTO DE ENTRADA PRINCIPAL

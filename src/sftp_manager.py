@@ -229,6 +229,30 @@ class SFTPManager:
                 print(f"   ⚠️  Advertencia: Tamaño difiere")
                 return False
 
+        except PermissionError as e:
+            print(f"   ❌ ERROR: Permiso denegado")
+            print(f"      💡 Solución: En el servidor, ejecuta:")
+            print(
+                f"         sudo chown {sftp_client.normalize('').split('/')[-2]}:grupo {remote_path.rsplit('/', 2)[0]}/"
+            )
+            print(f"         sudo chmod 755 {remote_path.rsplit('/', 2)[0]}/")
+            return False
+        except IOError as e:
+            if "Permission denied" in str(e) or "[Errno 13]" in str(e):
+                print(f"   ❌ ERROR: Permiso denegado para escribir en:")
+                print(f"      {remote_path}")
+                print(f"\n      💡 Soluciones posibles:")
+                print(f"      1. Verifica que el directorio exista")
+                print(f"      2. Verifica permisos del directorio")
+                print(f"      3. En el servidor, ejecuta:")
+                print(f"         sudo mkdir -p {remote_path.rsplit('/', 1)[0]}")
+                print(
+                    f"         sudo chown $USER:$USER {remote_path.rsplit('/', 1)[0]}"
+                )
+                print(f"         sudo chmod 755 {remote_path.rsplit('/', 1)[0]}")
+            else:
+                print(f"   ❌ ERROR: {e}")
+            return False
         except Exception as e:
             print(f"   ❌ ERROR: {e}")
             return False
