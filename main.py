@@ -142,10 +142,10 @@ class ESICORPApp:
     def mostrar_info(self):
         """Muestra información del servidor para conexiones entrantes."""
         from src.display_utils import mostrar_info_completa
-        
+
         # Mostrar toda la información
         mostrar_info_completa()
-        
+
         input("\nPresione Enter para continuar...")
 
     # ==========================================
@@ -209,10 +209,11 @@ class ESICORPApp:
             print("2. 📋 INFORMACIÓN DEL SERVIDOR")
             print("3. 🔑 GESTIÓN DE LLAVES RSA")
             print("4. 🔧 VERIFICAR/CONFIGURAR SSH")
-            print("5. 🚪 SALIR")
+            print("5. 🔐 INTERCAMBIO AUTOMÁTICO DE LLAVES")
+            print("6. 🚪 SALIR")
             print("\n")
 
-            option = input("Seleccione opción [1-5]: ").strip()
+            option = input("Seleccione opción [1-6]: ").strip()
 
             if option == "1":
                 self.enviar_archivos()
@@ -223,6 +224,8 @@ class ESICORPApp:
             elif option == "4":
                 self.verificar_ssh()
             elif option == "5":
+                self.intercambio_llaves()
+            elif option == "6":
                 print("\n👋 ¡Hasta luego!")
                 break
 
@@ -237,6 +240,43 @@ class ESICORPApp:
         verificar_y_configurar_ssh()
         input("\nPresione Enter para continuar...")
 
+
+
+    # ==========================================
+    # INTERCAMBIO AUTOMÁTICO DE LLAVES
+    # ==========================================
+    def intercambio_llaves(self):
+        """Menú de intercambio automático de llaves RSA."""
+        from src.key_exchange import modo_servidor_intercambio, modo_cliente_intercambio
+        
+        while True:
+            print_banner()
+            print("🔐 INTERCAMBIO AUTOMÁTICO DE LLAVES RSA")
+            print("=" * 60)
+            print("\n1. 🖥️  MODO SERVIDOR (Escuchar conexiones)")
+            print("2. 💻 MODO CLIENTE (Conectar a servidor)")
+            print("3. 🔙 VOLVER")
+            print("\n")
+            
+            opcion = input("Seleccione opción [1-3]: ").strip()
+            
+            if opcion == "1":
+                # Modo servidor
+                print_banner()
+                modo_servidor_intercambio()
+                input("\nPresione Enter para continuar...")
+                
+            elif opcion == "2":
+                # Modo cliente
+                print_banner()
+                modo_cliente_intercambio()
+                input("\nPresione Enter para continuar...")
+                
+            elif opcion == "3":
+                break
+            else:
+                print("\n⚠️  Opción inválida")
+                input("\nPresione Enter para continuar...")
 
 # ==========================================
 # PUNTO DE ENTRADA PRINCIPAL
