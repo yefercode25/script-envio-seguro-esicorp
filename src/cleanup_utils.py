@@ -3,7 +3,6 @@ Utilidad para limpiar configuraciones y archivos del sistema ESICORP
 """
 
 import os
-import shutil
 from pathlib import Path
 
 
@@ -32,32 +31,40 @@ def limpiar_llaves():
 
 def limpiar_known_hosts():
     """
-    Limpia entradas relacionadas con ESICORP en known_hosts
+    Muestra instrucciones para limpiar known_hosts manualmente
+    (evita problemas de permisos)
     """
     ssh_dir = Path.home() / ".ssh"
     known_hosts = ssh_dir / "known_hosts"
 
-    if not known_hosts.exists():
-        print("[i] No existe archivo known_hosts")
-        return True
+    print("[INFO] Limpieza de known_hosts")
+    print()
 
-    print("[PROC] Limpiando known_hosts...")
+    if known_hosts.exists():
+        print(f"[i] Archivo encontrado: {known_hosts}")
+        print()
+        print("[TIP] Para limpiar entradas de servidores ESICORP:")
+        print()
+        print("  Opcion 1 - Limpiar entrada especifica:")
+        print("    ssh-keygen -R <IP_DEL_SERVIDOR>")
+        print("    Ejemplo: ssh-keygen -R 192.168.1.100")
+        print()
+        print("  Opcion 2 - Limpiar todo (eliminar archivo):")
+        if os.name == "nt":
+            print(f"    del {known_hosts}")
+        else:
+            print(f"    rm {known_hosts}")
+        print()
+        print("  Opcion 3 - Editar manualmente:")
+        print(
+            f"    notepad {known_hosts}"
+            if os.name == "nt"
+            else f"    nano {known_hosts}"
+        )
+    else:
+        print("[i] No existe archivo known_hosts (nada que limpiar)")
 
-    try:
-        with open(known_hosts, "r") as f:
-            lines = f.readlines()
-
-        # Filtrar líneas que contengan IPs/hosts del proyecto
-        # (simplemente limpiamos todo ya que es desarrollo)
-        # En producción, aquí se filtrarían IPs específicas
-
-        print(f"[!] Se recomienda limpiar manualmente: {known_hosts}")
-        print(f"[TIP] O ejecutar: ssh-keygen -R <IP_SERVIDOR>")
-
-        return True
-    except Exception as e:
-        print(f"[!] Error al limpiar known_hosts: {e}")
-        return False
+    return True
 
 
 def limpiar_procesados():
@@ -98,7 +105,7 @@ def limpiar_directorio_remoto(sftp_client, ruta_remota="/home/grupo1/upload/"):
         archivos = sftp_client.listdir(ruta_remota)
 
         if not archivos:
-            print("[i] El directorio remoto ya está vacío")
+            print("[i] El directorio remoto ya esta vacio")
             return True
 
         print(f"[INFO] Encontrados {len(archivos)} elemento(s)")
@@ -110,7 +117,7 @@ def limpiar_directorio_remoto(sftp_client, ruta_remota="/home/grupo1/upload/"):
         )
 
         if confirmacion != "s":
-            print("[i] Operación cancelada")
+            print("[i] Operacion cancelada")
             return False
 
         eliminados = 0
@@ -121,7 +128,7 @@ def limpiar_directorio_remoto(sftp_client, ruta_remota="/home/grupo1/upload/"):
                 sftp_client.remove(ruta_completa)
                 print(f"  [X] Eliminado: {archivo}")
                 eliminados += 1
-            except:
+            except IOError:
                 # Si falla, puede ser un directorio
                 try:
                     sftp_client.rmdir(ruta_completa)
@@ -147,7 +154,7 @@ def limpiar_todo_local():
     print("=" * 60)
     print()
 
-    print("[!] Esta operación eliminará:")
+    print("[!] Esta operacion eliminara:")
     print("    - Llaves RSA en ./keys/")
     print("    - Archivos procesados en ./procesados/")
     print()
@@ -155,7 +162,7 @@ def limpiar_todo_local():
     confirmacion = input("[?] Continuar con la limpieza local? (s/N): ").strip().lower()
 
     if confirmacion != "s":
-        print("\n[i] Operación cancelada")
+        print("\n[i] Operacion cancelada")
         return False
 
     print()
