@@ -497,6 +497,108 @@ if __name__ == "__main__":
             mostrar_info_servidor()
             sys.exit(0)
 
+        # Verificar/Configurar SSH
+        elif args.check_ssh:
+            from src.ssh_service import verificar_y_configurar_ssh
+
+            print_banner()
+            verificar_y_configurar_ssh()
+            sys.exit(0)
+
+        # Intercambio automático de llaves
+        elif args.key_exchange:
+            from src.key_exchange import (
+                modo_servidor_intercambio,
+                modo_cliente_intercambio,
+            )
+
+            print_banner()
+
+            if not args.mode:
+                print_error("Debe especificar --mode server o --mode client")
+                sys.exit(1)
+
+            if args.mode == "server":
+                puerto = args.port or 5000
+                print(f"[INFO] Iniciando modo servidor en puerto {puerto}")
+                modo_servidor_intercambio(puerto)
+            elif args.mode == "client":
+                if not args.target:
+                    print_error("Modo cliente requiere --target <IP>")
+                    sys.exit(1)
+                puerto = args.port or 5000
+                print(f"[INFO] Conectando a {args.target}:{puerto}")
+                modo_cliente_intercambio(args.target, puerto)
+            sys.exit(0)
+
+        # Gestión de llaves RSA
+        elif args.manage_keys:
+            print_banner()
+
+            if not args.action:
+                print_error("Debe especificar --action view o --action generate")
+                sys.exit(1)
+
+            if args.action == "view":
+                print("=== LLAVES RSA ACTUALES ===")
+                print()
+                if app.sftp_mgr.verificar_llaves():
+                    pub_path = app.sftp_mgr.public_key_path
+                    priv_path = app.sftp_mgr.private_key_path
+                    print(f"[OK] Llave privada: {priv_path}")
+                    print(f"[OK] Llave pública: {pub_path}")
+                    print()
+                    print("Contenido de llave pública:")
+                    with open(pub_path, "r") as f:
+                        print(f.read())
+                else:
+                    print("[!] No se encontraron llaves RSA")
+            elif args.action == "generate":
+                print("=== GENERAR NUEVAS LLAVES RSA ===")
+                print()
+                priv, pub = app.sftp_mgr.generar_llaves()
+                if priv and pub:
+                    print("[OK] Llaves generadas exitosamente")
+                else:
+                    print("[X] Error al generar llaves")
+                    sys.exit(1)
+            sys.exit(0)
+
+        # Limpieza de configuraciones
+        elif args.cleanup:
+            from src import cleanup_utils
+
+            print_banner()
+
+            if not (args.local or args.remote or args.all):
+                print_error("Debe especificar --local, --remote, o --all")
+                sys.exit(1)
+
+            if args.local or args.all:
+                cleanup_utils.limpiar_todo_local()
+
+            if args.remote or args.all:
+                hostname = args.sftp_host or config.SFTP_CONFIG["hostname"]
+                username = args.sftp_user or config.SFTP_CONFIG["username"]
+                port = args.sftp_port or 22
+                remote_path = args.sftp_path or config.SFTP_CONFIG["remote_path"]
+
+                print()
+                print(f"[INFO] Conectando a {username}@{hostname}:{port}")
+                sftp_client, ssh_client = app.sftp_mgr.conectar_sftp(
+                    hostname=hostname, username=username, port=port
+                )
+
+                if sftp_client:
+                    cleanup_utils.limpiar_directorio_remoto(sftp_client, remote_path)
+                    app.sftp_mgr.cerrar_conexion(sftp_client, ssh_client)
+                else:
+                    print("[X] No se pudo conectar al servidor")
+                    sys.exit(1)
+
+            print("\n[OK] Limpieza completada")
+            sys.exit(0)
+
     except KeyboardInterrupt:
         print("\n\n[!]  Interrumpido por el usuario")
         sys.exit(0)
