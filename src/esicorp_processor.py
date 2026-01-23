@@ -15,7 +15,6 @@ import os
 import re
 import hashlib
 import base64
-import zipfile
 from pathlib import Path
 from datetime import datetime
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -25,21 +24,46 @@ from cryptography.hazmat.backends import default_backend
 class ESICORPProcessor:
     """Procesador de archivos con seguridad ESICORP."""
 
-    # Regex para archivos ESICORP: Area-DD-MM-AAAA.Sede
-    FILE_PATTERN = re.compile(r"^[A-Za-z]+-\d{2}-\d{2}-\d{4}\.[A-Za-z]+$")
+    # Regex para archivos ESICORP - Anexo 6
+    # Formato: (FE|NOM|EQUIV)-NNNNNNNN.txt
+    # FE = Factura Electrónica, NOM = Nómina, EQUIV = Documento Equivalente
+    FILE_PATTERN = re.compile(r"^(FE|NOM|EQUIV)-\d{8}\.txt$")
 
     def __init__(self, salida_dir="./salida", procesados_dir="./procesados"):
         """
         Inicializa el procesador ESICORP.
 
         Args:
-            salida_dir (str): Directorio de archivos de entrada
+            salida_dir (str): Directorio de archivos de entrada (Anexo 6: /Dian/XXX)
             procesados_dir (str): Directorio de archivos procesados
         """
         self.salida_dir = Path(salida_dir)
         self.procesados_dir = Path(procesados_dir)
-        self.salida_dir.mkdir(exist_ok=True)
-        self.procesados_dir.mkdir(exist_ok=True)
+
+        # Validar que el directorio de salida existe (CRÍTICO para Anexo 6)
+        if not self.salida_dir.exists():
+            print(f"\n{'=' * 60}")
+            print("[!] ADVERTENCIA: Directorio de origen no encontrado")
+            print(f"{'=' * 60}")
+            print(f"Directorio: {self.salida_dir.absolute()}")
+            print()
+            print("[INFO] Para cumplir con el Anexo 6 de ESICORP:")
+            print("   1. La ruta debe ser: /Dian/XXX (donde XXX es la sede)")
+            print("   2. Configure la variable de entorno ESICORP_DIAN_PATH")
+            print("   3. Cree el directorio con permisos adecuados:")
+            print()
+            print(f"      sudo mkdir -p {self.salida_dir}")
+            print(f"      sudo chown $USER:$USER {self.salida_dir}")
+            print(f"      sudo chmod 755 {self.salida_dir}")
+            print()
+            print("[INFO] Creando directorio automáticamente para desarrollo...")
+            print(f"{'=' * 60}\n")
+
+            # Crear directorio para desarrollo/testing
+            self.salida_dir.mkdir(parents=True, exist_ok=True)
+
+        # Crear directorio de procesados
+        self.procesados_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def calcular_hash_sha256(file_path):
@@ -128,43 +152,28 @@ class ESICORPProcessor:
         """
         Procesa un archivo aplicando todas las capas de seguridad ESICORP.
 
-        Flujo:
-        1. INTEGRIDAD: Calcular hash SHA-256
-        2. CODIFICACIÓN: Convertir a Base64
-        3. CONFIDENCIALIDAD: Cifrar con AES-256-CBC
-        4. EMPAQUETADO: Crear ZIP con .enc + .hash.txt + metadata
+        Flujo según Anexo 6:
+        1. CODIFICACIÓN: Convertir a Base64 (Unicode64)
+        2. CONFIDENCIALIDAD: Cifrar con AES-256-CBC
+        3. INTEGRIDAD: Calcular hash SHA-256 del archivo CIFRADO
 
         Args:
             file_path (Path): Ruta al archivo a procesar
             verbose (bool): Mostrar mensajes de progreso
 
         Returns:
-            Path: Ruta al archivo ZIP final, o None si falla
+            tuple: (enc_file, hash_file) para transmisión dual, o (None, None) si falla
         """
         if verbose:
-            print(f"\n📄 Procesando: {file_path.name}")
+            print(f"\n[PROC] Procesando: {file_path.name}")
             print("-" * 60)
 
         try:
             base_name = file_path.stem
 
-            # PASO 1: INTEGRIDAD - Calcular hash SHA-256
+            # PASO 1: CODIFICACIÓN - Base64 (Unicode64 según Anexo 6)
             if verbose:
-                print("[FIND] [INTEGRIDAD] Calculando hash SHA-256...")
-            hash_original = self.calcular_hash_sha256(file_path)
-            hash_file = self.procesados_dir / f"{base_name}.hash.txt"
-
-            with open(hash_file, "w") as f:
-                f.write(f"SHA-256: {hash_original}\n")
-                f.write(f"Archivo: {file_path.name}\n")
-                f.write(f"Fecha: {datetime.now().isoformat()}\n")
-
-            if verbose:
-                print(f"   [OK] Hash: {hash_original[:32]}...")
-
-            # PASO 2: CODIFICACIÓN - Convertir a Base64
-            if verbose:
-                print("[EDIT] [CODIFICACIÓN] Convirtiendo a Base64...")
+                print("[1/3] [CODIFICACIÓN] Convirtiendo a Base64 (Unicode64)...")
             with open(file_path, "rb") as f:
                 file_data = f.read()
             file_base64 = base64.b64encode(file_data)
@@ -172,9 +181,9 @@ class ESICORPProcessor:
             if verbose:
                 print(f"   [OK] Codificado ({len(file_base64)} bytes)")
 
-            # PASO 3: CONFIDENCIALIDAD - Cifrar con AES-256-CBC
+            # PASO 2: CONFIDENCIALIDAD - Cifrar con AES-256-CBC
             if verbose:
-                print("[SEC] [CONFIDENCIALIDAD] Cifrando con AES-256-CBC...")
+                print("[2/3] [CONFIDENCIALIDAD] Cifrando con AES-256-CBC...")
             clave, iv = self.generar_clave_aes()
             encrypted_data = self.cifrar_aes_256_cbc(file_base64, clave, iv)
 
@@ -189,39 +198,44 @@ class ESICORPProcessor:
 
             if verbose:
                 print(f"   [OK] Cifrado ({len(encrypted_data)} bytes)")
+                print(f"   [OK] Archivo cifrado: {enc_file.name}")
 
-            # PASO 4: EMPAQUETADO - Crear ZIP
+            # PASO 3: INTEGRIDAD - Calcular hash SHA-256 del archivo CIFRADO
             if verbose:
-                print("📦 [EMPAQUETADO] Creando archivo ZIP...")
-            zip_file = self.procesados_dir / f"{base_name}.zip"
+                print(
+                    "[3/3] [INTEGRIDAD] Calculando hash SHA-256 del archivo cifrado..."
+                )
 
-            with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zipf:
-                zipf.write(enc_file, enc_file.name)
-                zipf.write(hash_file, hash_file.name)
+            # ✅ CORREGIDO: Hash del archivo cifrado, NO del original
+            hash_cifrado = self.calcular_hash_sha256(enc_file)
+            hash_file = self.procesados_dir / f"{base_name}.hash.txt"
 
-                # Añadir metadata
-                metadata = f"""ESICORP - Archivo Seguro
-Archivo Original: {file_path.name}
-Procesado: {datetime.now().isoformat()}
-Hash SHA-256: {hash_original}
-Algoritmo Cifrado: AES-256-CBC
-"""
-                zipf.writestr("metadata.txt", metadata)
-
-            # Limpiar archivos temporales
-            enc_file.unlink()
-            hash_file.unlink()
+            with open(hash_file, "w") as f:
+                f.write(f"SHA-256: {hash_cifrado}\n")
+                f.write(f"Archivo Cifrado: {enc_file.name}\n")
+                f.write(f"Archivo Original: {file_path.name}\n")
+                f.write(f"Fecha: {datetime.now().isoformat()}\n")
 
             if verbose:
-                print(f"   [OK] ZIP creado: {zip_file.name}")
-                print(f"   Tamaño: {zip_file.stat().st_size} bytes")
-                print("[OK] Procesamiento completado\n")
+                print(f"   [OK] Hash del cifrado: {hash_cifrado[:32]}...")
 
-            return zip_file
+            # ✅ ANEXO 6: NO empaquetar en ZIP
+            # El Anexo 6 requiere transmisión DUAL de archivos separados:
+            # 1. archivo.enc (archivo cifrado)
+            # 2. archivo.hash (hash SHA-256 del cifrado)
+
+            if verbose:
+                print("\n[OK] Procesamiento completado")
+                print("   [>>] Archivos generados para transmisión:")
+                print(f"       1. {enc_file.name} ({enc_file.stat().st_size} bytes)")
+                print(f"       2. {hash_file.name} ({hash_file.stat().st_size} bytes)")
+
+            # Retornar tupla con ambos archivos (transmisión dual)
+            return enc_file, hash_file
 
         except Exception as e:
             print(f"[X] ERROR al procesar {file_path.name}: {e}")
-            return None
+            return None, None
 
     def procesar_desde_ruta(self, ruta, es_carpeta=False):
         """
@@ -295,12 +309,16 @@ Algoritmo Cifrado: AES-256-CBC
         archivos_encontrados = self.buscar_archivos(strict=True)
 
         if not archivos_encontrados:
-            print("[!]  No se encontraron archivos con el patrón: Area-DD-MM-AAAA.Sede")
+            print("[!]  No se encontraron archivos con el patrón del Anexo 6")
             print(f"   Directorio: {self.salida_dir.absolute()}")
+            print("\n[INFO] Patrón requerido (Anexo 6): (FE|NOM|EQUIV)-NNNNNNNN.txt")
+            print("   - FE     = Factura Electrónica")
+            print("   - NOM    = Nómina Electrónica")
+            print("   - EQUIV  = Documento Equivalente")
             print("\n   Ejemplos válidos:")
-            print("   - Finanzas-12-12-2025.lima")
-            print("   - Compras-23-02-2023.santiago")
-            print("   - Ventas-10-11-2023.buenosaires")
+            print("   - FE-20250122.txt")
+            print("   - NOM-20231215.txt")
+            print("   - EQUIV-20240310.txt")
 
             if permitir_seleccion:
                 print(
