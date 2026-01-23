@@ -1,0 +1,7 @@
+Documento Electrónico ESICORP - Anexo 6
+Archivo: FE-20241215.txt
+Tipo: FE
+Fecha: 2026-01-22 23:35:24
+Estado: VÁLIDO según Anexo 6
+
+Contenido de prueba para validación del patrón regex.
