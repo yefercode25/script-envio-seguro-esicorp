@@ -1,0 +1,6 @@
+Documento de prueba
+Archivo: FE-2025.txt
+Fecha: 2026-01-22 23:35:24
+Estado: INVÁLIDO - No cumple patrón Anexo 6
+
+Este archivo debe ser rechazado por el sistema.
