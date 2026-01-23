@@ -137,20 +137,61 @@ class ESICORPApp:
             remote_path = remote_path + "/"
 
         try:
-            # Enviar archivos
+            # ✅ TRANSMISIÓN DUAL según Anexo 6
+            # Enviar dos archivos por cada documento: .enc + .hash
             exitosos = 0
-            for zip_file in archivos_procesados:
-                remote_file = remote_path + zip_file.name
-                if self.sftp_mgr.subir_archivo(sftp_client, zip_file, remote_file):
-                    exitosos += 1
+            total_documentos = len(archivos_procesados)
+
+            print("\n" + "=" * 60)
+            print("TRANSMISIÓN SFTP - ANEXO 6 (DUAL)")
+            print("=" * 60)
+
+            for enc_file, hash_file in archivos_procesados:
+                # Verificar que ambos archivos se procesaron correctamente
+                if enc_file is None or hash_file is None:
+                    print(f"\n[X] Error: Archivo no procesado correctamente")
+                    continue
+
+                doc_nombre = enc_file.stem  # Nombre sin extensión
+                print(f"\n[>>] Transmitiendo documento: {doc_nombre}")
+                print("-" * 60)
+
+                # 1. Enviar archivo cifrado (.enc)
+                remote_enc = remote_path + enc_file.name
+                print(f"   [1/2] Enviando archivo cifrado: {enc_file.name}")
+                enc_ok = self.sftp_mgr.subir_archivo(
+                    sftp_client, enc_file, remote_enc, extraer=False
+                )
+
+                if enc_ok:
+                    print(f"         [OK] {enc_file.name} transmitido")
+
+                    # 2. Enviar archivo hash (.hash.txt)
+                    remote_hash = remote_path + hash_file.name
+                    print(f"   [2/2] Enviando hash: {hash_file.name}")
+                    hash_ok = self.sftp_mgr.subir_archivo(
+                        sftp_client, hash_file, remote_hash, extraer=False
+                    )
+
+                    if hash_ok:
+                        print(f"         [OK] {hash_file.name} transmitido")
+                        exitosos += 1
+                        print(
+                            f"\n   [OK] Documento {doc_nombre} transmitido completamente"
+                        )
+                    else:
+                        print(f"   [X] Error al enviar hash: {hash_file.name}")
+                else:
+                    print(f"   [X] Error al enviar archivo cifrado: {enc_file.name}")
 
             print("\n" + "=" * 60)
             print(
-                f"[OK] Resultado: {exitosos}/{len(archivos_procesados)} archivos enviados"
+                f"[OK] Resultado: {exitosos}/{total_documentos} documentos transmitidos"
             )
+            print(f"     Total de archivos enviados: {exitosos * 2} (.enc + .hash)")
             print("=" * 60)
 
-            if exitosos == len(archivos_procesados):
+            if exitosos == total_documentos:
                 print("\n[***] ¡PROCESO COMPLETADO EXITOSAMENTE!")
 
         finally:
