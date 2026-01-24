@@ -67,7 +67,9 @@ def crear_directorio_ssh():
     try:
         if not ssh_dir.exists():
             print(f"[DIR] Creando directorio: {ssh_dir}")
-            ssh_dir.mkdir(mode=0o700, parents=True)
+            # Primero crear el directorio sin permisos específicos
+            ssh_dir.mkdir(parents=True, exist_ok=True)
+            print(f"[OK] Directorio creado: {ssh_dir}")
 
         # Configurar permisos según el sistema
         sistema = platform.system().lower()
@@ -91,16 +93,43 @@ def crear_directorio_ssh():
                 )
                 print(f"[LOCK] Permisos configurados en Windows")
             except Exception as e:
-                print(f"[!]  Advertencia al configurar permisos: {e}")
+                print(f"[!]  Advertencia al configurar permisos Windows: {e}")
         else:
-            # En Linux/Mac usar chmod
-            os.chmod(ssh_dir, 0o700)
-            print(f"[LOCK] Permisos configurados (chmod 700)")
+            # En Linux/Mac usar chmod DESPUÉS de crear el directorio
+            try:
+                os.chmod(ssh_dir, 0o700)
+                print(f"[LOCK] Permisos configurados (chmod 700)")
+            except OSError as e:
+                print(f"[!]  Advertencia: No se pudieron establecer permisos 700")
+                print(f"       Error: {e}")
+                print(f"[TIP] Si continúa el error, ejecute manualmente:")
+                print(f"       chmod 700 {ssh_dir}")
 
         return True, f"Directorio .ssh verificado: {ssh_dir}"
 
+    except PermissionError as e:
+        error_msg = f"Error de permisos al crear {ssh_dir}: {e}"
+        print(f"[X] {error_msg}")
+        print(f"\n[TIP] Soluciones:")
+        print(f"  1. Verificar que tiene permisos en su directorio home:")
+        print(f"     ls -la ~ | grep .ssh")
+        print(f"  2. Si el directorio ya existe pero sin permisos:")
+        print(f"     chmod 700 {ssh_dir}")
+        print(f"  3. Si no existe, créelo manualmente:")
+        print(f"     mkdir -p {ssh_dir}")
+        print(f"     chmod 700 {ssh_dir}")
+        return False, error_msg
     except Exception as e:
-        return False, f"Error al crear directorio .ssh: {e}"
+        error_msg = f"Error al crear directorio .ssh: {e}"
+        print(f"[X] {error_msg}")
+        print(f"\n[DEBUG] Información de diagnóstico:")
+        print(f"  - Directorio destino: {ssh_dir}")
+        print(f"  - Directorio home: {Path.home()}")
+        print(
+            f"  - Usuario actual: {os.getenv('USER', os.getenv('USERNAME', 'unknown'))}"
+        )
+        print(f"  - Sistema: {platform.system()}")
+        return False, error_msg
 
 
 def configurar_permisos_archivo(archivo_path):
