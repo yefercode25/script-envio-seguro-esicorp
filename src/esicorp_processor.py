@@ -119,6 +119,163 @@ class ESICORPProcessor:
 
         return encrypted_data
 
+    @staticmethod
+    def descifrar_aes_256_cbc(encrypted_data, clave, iv):
+        """
+        CONFIDENCIALIDAD: Descifra datos usando AES-256 en modo CBC.
+
+        Args:
+            encrypted_data (bytes): Datos cifrados
+            clave (bytes): Clave AES de 32 bytes
+            iv (bytes): Vector de inicialización de 16 bytes
+
+        Returns:
+            bytes: Datos descifrados sin padding
+        """
+        # Crear descifrador AES-256-CBC
+        cipher = Cipher(algorithms.AES(clave), modes.CBC(iv), backend=default_backend())
+
+        decryptor = cipher.decryptor()
+        decrypted_data_padded = decryptor.update(encrypted_data) + decryptor.finalize()
+
+        # Remover padding PKCS7
+        padding_length = decrypted_data_padded[-1]
+        decrypted_data = decrypted_data_padded[:-padding_length]
+
+        return decrypted_data
+
+    def buscar_archivos_encriptados(self, directorio):
+        """
+        Busca archivos .enc que tengan su correspondiente .hash.txt
+
+        Args:
+            directorio (Path o str): Directorio donde buscar
+
+        Returns:
+            list: Lista de tuplas (enc_file, hash_file) de archivos completos
+        """
+        directorio = Path(directorio)
+        pares_completos = []
+
+        if not directorio.exists():
+            return pares_completos
+
+        # Buscar todos los archivos .enc
+        archivos_enc = list(directorio.glob("*.enc"))
+
+        for enc_file in archivos_enc:
+            # Buscar el archivo .hash.txt correspondiente
+            base_name = enc_file.stem  # nombre sin extensión
+            hash_file = directorio / f"{base_name}.hash.txt"
+
+            if hash_file.exists():
+                pares_completos.append((enc_file, hash_file))
+
+        return pares_completos
+
+    def desencriptar_archivo(
+        self, enc_file, hash_file, verificar_hash=True, verbose=True
+    ):
+        """
+        Desencripta un archivo .enc y verifica su integridad.
+
+        Flujo inverso al cifrado:
+        1. Verificar hash SHA-256 del archivo cifrado
+        2. Leer archivo .enc (IV + clave + datos cifrados)
+        3. Descifrar con AES-256-CBC
+        4. Decodificar de Base64
+        5. Guardar archivo original
+
+        Args:
+            enc_file (Path): Archivo cifrado (.enc)
+            hash_file (Path): Archivo con hash (.hash.txt)
+            verificar_hash (bool): Si True, verifica integridad antes de descifrar
+            verbose (bool): Mostrar mensajes de progreso
+
+        Returns:
+            Path: Ruta al archivo desencriptado, o None si falla
+        """
+        if verbose:
+            print(f"\n[PROC] Desencriptando: {enc_file.name}")
+            print("-" * 60)
+
+        try:
+            # PASO 1: Verificar integridad (opcional pero recomendado)
+            if verificar_hash:
+                if verbose:
+                    print("[1/4] [INTEGRIDAD] Verificando hash SHA-256...")
+
+                # Leer hash esperado
+                with open(hash_file, "r") as f:
+                    lineas = f.readlines()
+                    hash_esperado = lineas[0].split(": ")[1].strip()
+
+                # Calcular hash del archivo cifrado
+                hash_actual = self.calcular_hash_sha256(enc_file)
+
+                if hash_actual != hash_esperado:
+                    print(f"   [X] Hash no coincide!")
+                    print(f"       Esperado: {hash_esperado[:32]}...")
+                    print(f"       Actual:   {hash_actual[:32]}...")
+                    return None
+
+                if verbose:
+                    print(f"   [OK] Hash verificado correctamente")
+
+            # PASO 2: Leer archivo cifrado
+            if verbose:
+                print("[2/4] [LECTURA] Leyendo archivo cifrado...")
+
+            with open(enc_file, "rb") as f:
+                # Formato: [IV 16 bytes][Clave 32 bytes][Datos cifrados]
+                iv = f.read(16)
+                clave = f.read(32)
+                encrypted_data = f.read()
+
+            if verbose:
+                print(
+                    f"   [OK] Leídos: IV ({len(iv)}B), Clave ({len(clave)}B), Datos ({len(encrypted_data)}B)"
+                )
+
+            # PASO 3: Descifrar con AES-256-CBC
+            if verbose:
+                print("[3/4] [CONFIDENCIALIDAD] Descifrando con AES-256-CBC...")
+
+            decrypted_base64 = self.descifrar_aes_256_cbc(encrypted_data, clave, iv)
+
+            if verbose:
+                print(f"   [OK] Descifrado ({len(decrypted_base64)} bytes)")
+
+            # PASO 4: Decodificar de Base64
+            if verbose:
+                print("[4/4] [CODIFICACIÓN] Decodificando de Base64...")
+
+            original_data = base64.b64decode(decrypted_base64)
+
+            if verbose:
+                print(f"   [OK] Decodificado ({len(original_data)} bytes)")
+
+            # PASO 5: Guardar archivo original
+            # Nombre: quitar .enc y agregar .txt
+            output_file = enc_file.parent / f"{enc_file.stem}_decrypted.txt"
+
+            with open(output_file, "wb") as f:
+                f.write(original_data)
+
+            if verbose:
+                print(f"\n[OK] Archivo desencriptado exitosamente")
+                print(f"   [>>] Guardado en: {output_file.name}")
+                print(f"   [>>] Tamaño: {len(original_data)} bytes")
+
+            return output_file
+
+        except Exception as e:
+            print(f"[X] ERROR al desencriptar {enc_file.name}: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return None
+
     def buscar_archivos(self, strict=True):
         """
         Busca archivos que cumplan con el patrón ESICORP.

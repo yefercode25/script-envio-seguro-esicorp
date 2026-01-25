@@ -286,10 +286,13 @@ class ESICORPApp:
             print("6. [TOOL] LIMPIAR CONFIGURACIONES Y ARCHIVOS")
             print("   Eliminar llaves, archivos procesados y limpiar servidor remoto")
             print()
-            print("7. [EXIT] SALIR")
+            print("7. [DOWN] DESENCRIPTAR ARCHIVOS RECIBIDOS")
+            print("   Desencriptar archivos .enc con verificación de integridad")
+            print()
+            print("8. [EXIT] SALIR")
             print()
 
-            option = input("Seleccione opcion [1-7]: ").strip()
+            option = input("Seleccione opcion [1-8]: ").strip()
 
             if option == "1":
                 self.verificar_ssh()
@@ -304,8 +307,131 @@ class ESICORPApp:
             elif option == "6":
                 self.limpiar_sistema()
             elif option == "7":
+                self.desencriptar_archivos_recibidos()
+            elif option == "8":
                 print("\n[BYE] Hasta luego!")
                 break
+
+    # ==========================================
+    # DESENCRIPTACIÓN DE ARCHIVOS RECIBIDOS
+    # ==========================================
+    def desencriptar_archivos_recibidos(self):
+        """Desencripta archivos .enc recibidos del servidor."""
+        print_banner()
+        print("DESENCRIPTAR ARCHIVOS RECIBIDOS")
+        print("=" * 60)
+        print()
+
+        # Solicitar ruta
+        print("[INFO] Ingrese la ruta donde están los archivos cifrados")
+        print("       (Ejemplo: ./procesados  o  /home/usuario/archivos)")
+        print()
+        ruta = input("Ruta: ").strip()
+
+        if not ruta:
+            print("\n[!] Ruta vacía. Operación cancelada.")
+            input("\nPresione Enter para continuar...")
+            return
+
+        from pathlib import Path
+
+        directorio = Path(ruta)
+
+        if not directorio.exists():
+            print(f"\n[X] Error: La ruta no existe: {directorio}")
+            input("\nPresione Enter para continuar...")
+            return
+
+        if not directorio.is_dir():
+            print(f"\n[X] Error: La ruta no es un directorio: {directorio}")
+            input("\nPresione Enter para continuar...")
+            return
+
+        # Buscar archivos encriptados
+        print(f"\n[FIND] Buscando archivos .enc con su .hash.txt en:")
+        print(f"       {directorio.absolute()}")
+        print()
+
+        pares = self.processor.buscar_archivos_encriptados(directorio)
+
+        if not pares:
+            print(
+                "[!] No se encontraron archivos .enc con su .hash.txt correspondiente"
+            )
+            print()
+            print("[INFO] Asegúrese de que ambos archivos estén presentes:")
+            print("       - archivo.enc")
+            print("       - archivo.hash.txt")
+            input("\nPresione Enter para continuar...")
+            return
+
+        # Mostrar archivos encontrados
+        print(f"[OK] Encontrados {len(pares)} archivo(s) completo(s):")
+        print("=" * 60)
+        print()
+
+        for i, (enc_file, hash_file) in enumerate(pares, 1):
+            enc_size = enc_file.stat().st_size
+            hash_size = hash_file.stat().st_size
+            print(f"  {i}. {enc_file.name}")
+            print(f"     └─ {hash_file.name}")
+            print(f"        Tamaños: {enc_size}B + {hash_size}B")
+            print()
+
+        print(f"  {len(pares) + 1}. [ALL] Desencriptar TODOS")
+        print(f"  {len(pares) + 2}. [<] Volver")
+        print()
+
+        # Solicitar selección
+        opcion = input(f"Seleccione archivo [1-{len(pares) + 2}]: ").strip()
+
+        if opcion == str(len(pares) + 2):
+            print("\n[INFO] Operación cancelada")
+            input("\nPresione Enter para continuar...")
+            return
+
+        archivos_a_desencriptar = []
+
+        if opcion == str(len(pares) + 1):
+            # Desencriptar todos
+            archivos_a_desencriptar = pares
+            print(f"\n[PROC] Desencriptando TODOS los archivos ({len(pares)})...")
+        elif opcion.isdigit() and 1 <= int(opcion) <= len(pares):
+            # Desencriptar uno específico
+            idx = int(opcion) - 1
+            archivos_a_desencriptar = [pares[idx]]
+            print(f"\n[PROC] Desencriptando {pares[idx][0].name}...")
+        else:
+            print("\n[X] Opción inválida")
+            input("\nPresione Enter para continuar...")
+            return
+
+        # Desencriptar archivos seleccionados
+        print("=" * 60)
+        exitosos = 0
+        fallidos = 0
+
+        for enc_file, hash_file in archivos_a_desencriptar:
+            resultado = self.processor.desencriptar_archivo(
+                enc_file, hash_file, verificar_hash=True, verbose=True
+            )
+
+            if resultado:
+                exitosos += 1
+            else:
+                fallidos += 1
+
+        # Resumen
+        print("\n" + "=" * 60)
+        print("RESUMEN DE DESENCRIPTACIÓN")
+        print("=" * 60)
+        print(f"  [OK] Exitosos: {exitosos}")
+        if fallidos > 0:
+            print(f"  [X]  Fallidos:  {fallidos}")
+        print(f"  [>>] Total:     {len(archivos_a_desencriptar)}")
+        print("=" * 60)
+
+        input("\nPresione Enter para continuar...")
 
     # ==========================================
     # LIMPIEZA DE CONFIGURACIONES Y ARCHIVOS
